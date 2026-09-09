@@ -47,7 +47,8 @@ initDB().catch(console.error);
 // Submit a new report to Turso
 app.post('/api/reports', async (req, res) => {
   try {
-    const { category, description } = req.body;
+    const category = req.body.category ? String(req.body.category) : 'General';
+    const description = req.body.description ? String(req.body.description) : '';
 
     await db.execute({
       sql: 'INSERT INTO reports (category, description) VALUES (?, ?)',
