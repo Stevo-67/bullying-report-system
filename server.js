@@ -1,5 +1,25 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+// NEW WAY:
+const { createClient } = require('@libsql/client');
+
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN
+});
+// Function that runs when server starts
+async function initDB() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT,
+      description TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
+// Execute the function and log any connection errors
+initDB().catch(console.error);
 const cors = require('cors');
 const path = require('path');
 const app = express();
@@ -11,14 +31,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Connect to SQLite Database (Creates 'reports.db' automatically if missing)
-const db = new sqlite3.Database('./reports.db', (err) => {
-    if (err) {
-        console.error('Database connection error:', err.message);
-    } else {
-        console.log('Connected to SQLite database.');
-    }
-});
+
 
 // Create 'reports' table if it does not exist
 db.serialize(() => {
@@ -35,38 +48,34 @@ db.serialize(() => {
     `);
 });
 
-// API Endpoint: Submit a new report (Student Page)
-app.post('/api/reports', (req, res) => {
-    const { content, student_name, is_anonymous, urgency } = req.body;
+// Submit a new report to Turso
+app.post('/api/reports', async (req, res) => {
+  try {
+    const { category, description } = req.body;
 
-    if (!content || content.trim() === "") {
-        return res.status(400).json({ error: "Report description cannot be empty." });
-    }
-
-    const anonymousFlag = is_anonymous ? 1 : 0;
-    const finalName = anonymousFlag ? "Anonymous" : (student_name ? student_name.trim() : "Anonymous");
-
-    const sql = `INSERT INTO reports (content, student_name, is_anonymous, urgency) VALUES (?, ?, ?, ?)`;
-    
-    db.run(sql, [content, finalName, anonymousFlag, urgency || 'Medium'], function (err) {
-        if (err) {
-            console.error(err.message);
-            return res.status(500).json({ error: "Failed to save report to database." });
-        }
-        res.json({ success: true, message: "Report submitted successfully.", reportId: this.lastID });
+    await db.execute({
+      sql: 'INSERT INTO reports (category, description) VALUES (?, ?)',
+      args: [category, description]
     });
+
+    res.json({ success: true, message: 'Report submitted successfully' });
+  } catch (error) {
+    console.error('Error saving report:', error);
+    res.status(500).json({ error: 'Failed to submit report' });
+  }
 });
 
-// API Endpoint: Retrieve all reports (Counselor Dashboard)
-app.get('/api/reports', (req, res) => {
-    const sql = `SELECT * FROM reports ORDER BY created_at DESC`;
-    db.all(sql, [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        res.json(rows);
-    });
+// Fetch all reports for the admin page
+app.get('/api/reports', async (req, res) => {
+  try {
+    const result = await db.execute('SELECT * FROM reports ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    res.status(500).json({ error: 'Failed to fetch reports' });
+  }
 });
+
 
 // API Endpoint: Update report status (Counselor Dashboard)
 app.patch('/api/reports/:id', (req, res) => {
