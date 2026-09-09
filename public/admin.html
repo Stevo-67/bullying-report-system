@@ -27,7 +27,7 @@
             <tr>
                 <th>ID</th>
                 <th>Timestamp</th>
-                <th>Student</th>
+                <th>Student / Category</th>
                 <th>Urgency</th>
                 <th>Description / Request</th>
                 <th>Status</th>
@@ -45,18 +45,21 @@
             tableBody.innerHTML = '';
 
             reports.forEach(report => {
+                const rawDate = report.timestamp ? report.timestamp.replace(' ', 'T') : '';
+                const formattedDate = rawDate ? new Date(rawDate).toLocaleString() : 'N/A';
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${report.id}</td>
-                    <td>${new Date(report.created_at).toLocaleString()}</td>
-                    <td><strong>${escapeHtml(report.student_name)}</strong></td>
-                    <td><span class="badge badge-${report.urgency}">${report.urgency}</span></td>
-                    <td>${escapeHtml(report.content)}</td>
+                    <td>${formattedDate}</td>
+                    <td><strong>${escapeHtml(report.category || 'Anonymous')}</strong></td>
+                    <td><span class="badge badge-Medium">Normal</span></td>
+                    <td>${escapeHtml(report.description || 'No content')}</td>
                     <td>
                         <select onchange="updateStatus(${report.id}, this.value)">
-                            <option value="Pending" ${report.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                            <option value="Under Review" ${report.status === 'Under Review' ? 'selected' : ''}>Under Review</option>
-                            <option value="Resolved" ${report.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Under Review">Under Review</option>
+                            <option value="Resolved">Resolved</option>
                         </select>
                     </td>
                 `;
@@ -68,22 +71,26 @@
     }
 
     async function updateStatus(id, newStatus) {
-        await fetch(`/api/reports/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus })
-        });
+        try {
+            await fetch(`/api/reports/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+        } catch (err) {
+            console.error('Failed to update status:', err);
+        }
     }
 
     function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
     loadReports();
 </script>
