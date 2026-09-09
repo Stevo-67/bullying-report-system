@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSpace - Bullying Reporting Portal</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f0f4f8; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .crisis-banner { background-color: #ffebe9; border-left: 5px solid #d9381e; padding: 12px; margin-bottom: 20px; font-size: 14px; color: #a80000; }
+        h1 { margin-top: 0; color: #2c3e50; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-weight: bold; margin-bottom: 6px; color: #333; }
+        textarea, input[type="text"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 15px; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; }
+        .checkbox-group input { width: 18px; height: 18px; }
+        button { background-color: #27ae60; color: white; padding: 12px; border: none; border-radius: 4px; width: 100%; font-size: 16px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #219150; }
+        .success-msg { display: none; background: #e8f8f0; color: #27ae60; padding: 15px; border-radius: 4px; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="crisis-banner">
+        <strong>Immediate Danger?</strong> If you or someone else is in immediate physical danger, please contact local emergency services (like 911) or call a crisis helpline directly.
+    </div>
+
+    <h1>SafeSpace Help & Reporting</h1>
+    <p>Describe what happened or request support below. Your submission will be handled confidentially by a school counselor.</p>
+
+    <div id="successMessage" class="success-msg">
+        Thank you. Your request has been securely submitted.
+    </div>
+
+    <form id="reportForm">
+        <div class="form-group">
+            <label for="content">What happened / How can we help?</label>
+            <textarea id="content" rows="5" required placeholder="Describe the incident or request support..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="urgency">Urgency Level</label>
+            <select id="urgency">
+                <option value="Low">Low - General advice or information</option>
+                <option value="Medium" selected>Medium - Needs attention soon</option>
+                <option value="High">High - Urgent attention needed</option>
+            </select>
+        </div>
+
+        <div class="form-group checkbox-group">
+            <input type="checkbox" id="isAnonymous" onchange="toggleNameInput()" checked>
+            <label for="isAnonymous" style="margin-bottom:0;">Remain anonymous</label>
+        </div>
+
+        <div class="form-group" id="nameGroup" style="display: none;">
+            <label for="studentName">Your Name</label>
+            <input type="text" id="studentName" placeholder="Enter your full name">
+        </div>
+
+        <button type="submit">Submit Request</button>
+    </form>
+</div>
+
+<script>
+    function toggleNameInput() {
+        const isAnon = document.getElementById('isAnonymous').checked;
+        const nameGroup = document.getElementById('nameGroup');
+        if (isAnon) {
+            nameGroup.style.display = 'none';
+            document.getElementById('studentName').value = '';
+        } else {
+            nameGroup.style.display = 'block';
+        }
+    }
+
+    document.getElementById('reportForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            content: document.getElementById('content').value,
+            urgency: document.getElementById('urgency').value,
+            is_anonymous: document.getElementById('isAnonymous').checked,
+            student_name: document.getElementById('studentName').value
+        };
+
+        try {
+            const response = await fetch('/api/reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                document.getElementById('reportForm').style.display = 'none';
+                document.getElementById('successMessage').style.display = 'block';
+            } else {
+                alert('Failed to submit report. Please check your inputs.');
+            }
+        } catch (err) {
+            console.error('Error submitting form:', err);
+            alert('Server error. Make sure your backend server is running.');
+        }
+    });
+</script>
+
+</body>
+</html>

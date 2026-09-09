@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Counselor Dashboard - SafeSpace</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px; }
+        h1 { color: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        th, td { padding: 12px; border: 1px solid #dee2e6; text-align: left; vertical-align: top; }
+        th { background-color: #2c3e50; color: white; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; color: white; }
+        .badge-High { background-color: #d9381e; }
+        .badge-Medium { background-color: #f39c12; }
+        .badge-Low { background-color: #2980b9; }
+        button.refresh-btn { padding: 8px 16px; background-color: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h1>Counselor Portal</h1>
+    <button class="refresh-btn" onclick="loadReports()">Refresh Submissions</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Timestamp</th>
+                <th>Student</th>
+                <th>Urgency</th>
+                <th>Description / Request</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="reportsTable"></tbody>
+    </table>
+
+<script>
+    async function loadReports() {
+        try {
+            const res = await fetch('/api/reports');
+            const reports = await res.json();
+            const tableBody = document.getElementById('reportsTable');
+            tableBody.innerHTML = '';
+
+            reports.forEach(report => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${report.id}</td>
+                    <td>${new Date(report.created_at).toLocaleString()}</td>
+                    <td><strong>${escapeHtml(report.student_name)}</strong></td>
+                    <td><span class="badge badge-${report.urgency}">${report.urgency}</span></td>
+                    <td>${escapeHtml(report.content)}</td>
+                    <td>
+                        <select onchange="updateStatus(${report.id}, this.value)">
+                            <option value="Pending" ${report.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                            <option value="Under Review" ${report.status === 'Under Review' ? 'selected' : ''}>Under Review</option>
+                            <option value="Resolved" ${report.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                        </select>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        } catch (err) {
+            console.error('Failed to load reports:', err);
+        }
+    }
+
+    async function updateStatus(id, newStatus) {
+        await fetch(`/api/reports/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    loadReports();
+</script>
+
+</body>
+</html>
