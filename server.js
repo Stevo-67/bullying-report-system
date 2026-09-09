@@ -1,68 +1,43 @@
 const express = require('express');
-// NEW WAY:
 const { createClient } = require('@libsql/client');
-
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN
-});
-// Function that runs when server starts
-async function initDB() {
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS reports (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      category TEXT,
-      description TEXT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-}
-
-// Execute the function and log any connection errors
-initDB().catch(console.error);
-const cors = require('cors');
 const path = require('path');
+
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-
-// Middleware configuration
-app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ✅ PASTE THIS TURSO BLOCK:
-async function initDB() {
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS reports (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      category TEXT,
-      description TEXT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-}
-initDB().catch(console.error);
-
-// Submit a new report to Turso
-app.post('/api/reports', async (req, res) => {
-  try {
-    const category = req.body.category ? String(req.body.category) : 'General';
-    const description = req.body.description ? String(req.body.description) : '';
-
-    await db.execute({
-      sql: 'INSERT INTO reports (category, description) VALUES (?, ?)',
-      args: [category, description]
-    });
-
-    res.json({ success: true, message: 'Report submitted successfully' });
-  } catch (error) {
-    console.error('Error saving report:', error);
-    res.status(500).json({ error: 'Failed to submit report' });
-  }
+// Initialize Turso Client
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL || '',
+  authToken: process.env.TURSO_AUTH_TOKEN || '',
 });
 
-// Fetch all reports for the admin page
+// Initialize Database Table
+async function initDB() {
+  try {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT,
+        description TEXT,
+        status TEXT DEFAULT 'Pending',
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Safely add status column if using an existing table from earlier steps
+    try {
+      await db.execute(`ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'Pending'`);
+    } catch (e) {
+      // Column already exists, safe to ignore
+    }
+  } catch (err) {
+    console.error('Database initialization error:', err);
+  }
+}
+initDB();
+
+// GET all reports
 app.get('/api/reports', async (req, res) => {
   try {
     const result = await db.execute('SELECT * FROM reports ORDER BY id DESC');
@@ -73,21 +48,43 @@ app.get('/api/reports', async (req, res) => {
   }
 });
 
+// POST a new report
+app.post('/api/reports', async (req, res) => {
+  try {
+    const category = req.body.category ? String(req.body.category) : 'General';
+    const description = req.body.description ? String(req.body.description) : 'No description provided';
 
-// API Endpoint: Update report status (Counselor Dashboard)
-app.patch('/api/reports/:id', (req, res) => {
-    const { status } = req.body;
-    const sql = `UPDATE reports SET status = ? WHERE id = ?`;
-
-    db.run(sql, [status, req.params.id], function (err) {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        res.json({ success: true, message: "Status updated." });
+    await db.execute({
+      sql: 'INSERT INTO reports (category, description, status) VALUES (?, ?, ?)',
+      args: [category, description, 'Pending']
     });
+
+    res.json({ success: true, message: 'Report submitted successfully' });
+  } catch (error) {
+    console.error('Error saving report:', error);
+    res.status(500).json({ error: 'Failed to submit report' });
+  }
 });
 
-// Start the Web Server
+// PATCH update status dropdown from admin portal
+app.patch('/api/reports/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    await db.execute({
+      sql: 'UPDATE reports SET status = ? WHERE id = ?',
+      args: [status || 'Pending', id]
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating status:', error);
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

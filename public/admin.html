@@ -47,19 +47,20 @@
             reports.forEach(report => {
                 const rawDate = report.timestamp ? report.timestamp.replace(' ', 'T') : '';
                 const formattedDate = rawDate ? new Date(rawDate).toLocaleString() : 'N/A';
+                const currentStatus = report.status || 'Pending';
 
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${report.id}</td>
                     <td>${formattedDate}</td>
-                    <td><strong>${escapeHtml(report.category || 'Anonymous')}</strong></td>
+                    <td><strong>${escapeHtml(report.category || 'General')}</strong></td>
                     <td><span class="badge badge-Medium">Normal</span></td>
-                    <td>${escapeHtml(report.description || 'No content')}</td>
+                    <td>${escapeHtml(report.description || 'No description provided')}</td>
                     <td>
                         <select onchange="updateStatus(${report.id}, this.value)">
-                            <option value="Pending">Pending</option>
-                            <option value="Under Review">Under Review</option>
-                            <option value="Resolved">Resolved</option>
+                            <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                            <option value="Under Review" ${currentStatus === 'Under Review' ? 'selected' : ''}>Under Review</option>
+                            <option value="Resolved" ${currentStatus === 'Resolved' ? 'selected' : ''}>Resolved</option>
                         </select>
                     </td>
                 `;
@@ -72,11 +73,12 @@
 
     async function updateStatus(id, newStatus) {
         try {
-            await fetch(`/api/reports/${id}`, {
+            const res = await fetch(`/api/reports/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })
             });
+            if (!res.ok) throw new Error('Status update failed');
         } catch (err) {
             console.error('Failed to update status:', err);
         }
