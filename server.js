@@ -31,22 +31,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-
-
-// Create 'reports' table if it does not exist
-db.serialize(() => {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            content TEXT NOT NULL,
-            student_name TEXT DEFAULT 'Anonymous',
-            is_anonymous INTEGER NOT NULL,
-            urgency TEXT DEFAULT 'Medium',
-            status TEXT DEFAULT 'Pending',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-});
+// ✅ PASTE THIS TURSO BLOCK:
+async function initDB() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT,
+      description TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+initDB().catch(console.error);
 
 // Submit a new report to Turso
 app.post('/api/reports', async (req, res) => {
