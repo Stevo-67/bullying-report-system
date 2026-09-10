@@ -49,11 +49,17 @@
                 const formattedDate = rawDate ? new Date(rawDate).toLocaleString() : 'N/A';
                 const currentStatus = report.status || 'Pending';
 
+                const studentName = report.student_name || report.student || 'Anonymous';
+                const categoryName = report.category || 'General';
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${report.id}</td>
                     <td>${formattedDate}</td>
-                    <td><strong>${escapeHtml(report.category || 'General')}</strong></td>
+                    <td>
+                        <strong>${escapeHtml(studentName)}</strong><br>
+                        <small style="color: #6c757d;">Category: ${escapeHtml(categoryName)}</small>
+                    </td>
                     <td><span class="badge badge-Medium">Normal</span></td>
                     <td>${escapeHtml(report.description || 'No description provided')}</td>
                     <td>

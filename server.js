@@ -21,16 +21,20 @@ async function initDB() {
         category TEXT,
         description TEXT,
         status TEXT DEFAULT 'Pending',
+        student_name TEXT DEFAULT 'Anonymous',
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Safely add status column if using an existing table from earlier steps
+    // Safely apply schema upgrades for existing tables
     try {
       await db.execute(`ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'Pending'`);
-    } catch (e) {
-      // Column already exists, safe to ignore
-    }
+    } catch (e) {}
+
+    try {
+      await db.execute(`ALTER TABLE reports ADD COLUMN student_name TEXT DEFAULT 'Anonymous'`);
+    } catch (e) {}
+
   } catch (err) {
     console.error('Database initialization error:', err);
   }
@@ -48,11 +52,18 @@ app.get('/api/reports', async (req, res) => {
   }
 });
 
-// POST a new report
+// POST a new report (handles student_name, category, description with fallbacks)
 app.post('/api/reports', async (req, res) => {
   try {
-    // Check for description under any name the student form might use
+    const student_name = 
+      req.body.student_name || 
+      req.body.student || 
+      req.body.name || 
+      req.body.author || 
+      'Anonymous';
+
     const category = req.body.category || req.body.type || 'General';
+    
     const description = 
       req.body.description || 
       req.body.content || 
@@ -62,8 +73,8 @@ app.post('/api/reports', async (req, res) => {
       'No description provided';
 
     await db.execute({
-      sql: 'INSERT INTO reports (category, description, status) VALUES (?, ?, ?)',
-      args: [String(category), String(description), 'Pending']
+      sql: 'INSERT INTO reports (category, description, status, student_name) VALUES (?, ?, ?, ?)',
+      args: [String(category), String(description), 'Pending', String(student_name)]
     });
 
     res.json({ success: true, message: 'Report submitted successfully' });
@@ -73,7 +84,7 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
-// PATCH update status dropdown from admin portal
+// PATCH update status
 app.patch('/api/reports/:id', async (req, res) => {
   try {
     const { id } = req.params;
