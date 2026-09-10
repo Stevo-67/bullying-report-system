@@ -52,6 +52,10 @@
                 const studentName = report.student_name || report.student || 'Anonymous';
                 const categoryName = report.category || 'General';
 
+                // Dynamically format urgency for badge classes (.badge-High, .badge-Medium, .badge-Low)
+                const rawUrgency = report.urgency || 'Medium';
+                const urgency = rawUrgency.charAt(0).toUpperCase() + rawUrgency.slice(1).toLowerCase();
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${report.id}</td>
@@ -60,7 +64,7 @@
                         <strong>${escapeHtml(studentName)}</strong><br>
                         <small style="color: #6c757d;">Category: ${escapeHtml(categoryName)}</small>
                     </td>
-                    <td><span class="badge badge-Medium">Normal</span></td>
+                    <td><span class="badge badge-${urgency}">${escapeHtml(urgency)}</span></td>
                     <td>${escapeHtml(report.description || 'No description provided')}</td>
                     <td>
                         <select onchange="updateStatus(${report.id}, this.value)">

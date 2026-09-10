@@ -22,6 +22,7 @@ async function initDB() {
         description TEXT,
         status TEXT DEFAULT 'Pending',
         student_name TEXT DEFAULT 'Anonymous',
+        urgency TEXT DEFAULT 'Medium',
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -33,6 +34,10 @@ async function initDB() {
 
     try {
       await db.execute(`ALTER TABLE reports ADD COLUMN student_name TEXT DEFAULT 'Anonymous'`);
+    } catch (e) {}
+
+    try {
+      await db.execute(`ALTER TABLE reports ADD COLUMN urgency TEXT DEFAULT 'Medium'`);
     } catch (e) {}
 
   } catch (err) {
@@ -52,7 +57,7 @@ app.get('/api/reports', async (req, res) => {
   }
 });
 
-// POST a new report (handles student_name, category, description with fallbacks)
+// POST a new report (handles student_name, category, description, urgency)
 app.post('/api/reports', async (req, res) => {
   try {
     const student_name = 
@@ -72,9 +77,15 @@ app.post('/api/reports', async (req, res) => {
       req.body.text || 
       'No description provided';
 
+    const urgency = 
+      req.body.urgency || 
+      req.body.priority || 
+      req.body.level || 
+      'Medium';
+
     await db.execute({
-      sql: 'INSERT INTO reports (category, description, status, student_name) VALUES (?, ?, ?, ?)',
-      args: [String(category), String(description), 'Pending', String(student_name)]
+      sql: 'INSERT INTO reports (category, description, status, student_name, urgency) VALUES (?, ?, ?, ?, ?)',
+      args: [String(category), String(description), 'Pending', String(student_name), String(urgency)]
     });
 
     res.json({ success: true, message: 'Report submitted successfully' });
