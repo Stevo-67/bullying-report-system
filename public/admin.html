@@ -26,7 +26,7 @@
         <thead>
             <tr>
                 <th>ID</th>
-                <th>Timestamp</th>
+                <th>Timestamp (EAT)</th>
                 <th>Student / Category</th>
                 <th>Urgency</th>
                 <th>Description / Request</th>
@@ -45,14 +45,20 @@
             tableBody.innerHTML = '';
 
             reports.forEach(report => {
-                const rawDate = report.timestamp ? report.timestamp.replace(' ', 'T') : '';
-                const formattedDate = rawDate ? new Date(rawDate).toLocaleString() : 'N/A';
-                const currentStatus = report.status || 'Pending';
+                // Format SQLite UTC timestamp into East Africa Time (EAT)
+                let rawDate = report.timestamp ? report.timestamp.replace(' ', 'T') : '';
+                if (rawDate && !rawDate.endsWith('Z')) {
+                    rawDate += 'Z'; // Treat SQLite CURRENT_TIMESTAMP as UTC
+                }
 
+                const formattedDate = rawDate ? new Date(rawDate).toLocaleString('en-US', {
+                    timeZone: 'Africa/Nairobi'
+                }) : 'N/A';
+
+                const currentStatus = report.status || 'Pending';
                 const studentName = report.student_name || report.student || 'Anonymous';
                 const categoryName = report.category || 'General';
 
-                // Dynamically format urgency for badge classes (.badge-High, .badge-Medium, .badge-Low)
                 const rawUrgency = report.urgency || 'Medium';
                 const urgency = rawUrgency.charAt(0).toUpperCase() + rawUrgency.slice(1).toLowerCase();
 
