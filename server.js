@@ -51,12 +51,19 @@ app.get('/api/reports', async (req, res) => {
 // POST a new report
 app.post('/api/reports', async (req, res) => {
   try {
-    const category = req.body.category ? String(req.body.category) : 'General';
-    const description = req.body.description ? String(req.body.description) : 'No description provided';
+    // Check for description under any name the student form might use
+    const category = req.body.category || req.body.type || 'General';
+    const description = 
+      req.body.description || 
+      req.body.content || 
+      req.body.details || 
+      req.body.message || 
+      req.body.text || 
+      'No description provided';
 
     await db.execute({
       sql: 'INSERT INTO reports (category, description, status) VALUES (?, ?, ?)',
-      args: [category, description, 'Pending']
+      args: [String(category), String(description), 'Pending']
     });
 
     res.json({ success: true, message: 'Report submitted successfully' });
