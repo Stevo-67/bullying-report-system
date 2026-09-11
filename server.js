@@ -7,54 +7,31 @@ app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Configuration
 const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
-// Paste your Webhook URL directly between the quotes below if using Discord/Telegram:
-const WEBHOOK_URL = ''; 
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL || '',
   authToken: process.env.TURSO_AUTH_TOKEN || '',
 });
 
-// Real-time Event Stream Clients (Inbuilt live browser notifications)
+// SSE Live Notification Connections
 let sseClients = [];
 
+// Send keep-alive ping every 20s to prevent Render timeouts
+setInterval(() => {
+  sseClients.forEach(client => client.write(': ping\n\n'));
+}, 20000);
+
 function notifyAdmins(reportData) {
-  // 1. Broadcast to open admin dashboards via Server-Sent Events (SSE)
   sseClients.forEach(client => {
     client.write(`data: ${JSON.stringify(reportData)}\n\n`);
   });
-
-  // 2. Trigger hardcoded Webhook if a URL is provided
-  if (WEBHOOK_URL && WEBHOOK_URL.trim() !== '') {
-    const colorMap = { 'High': 14177054, 'Medium': 15958034, 'Low': 2719929 };
-    const payload = {
-      embeds: [{
-        title: `🚨 New Report Received (${reportData.urgency} Urgency)`,
-        color: colorMap[reportData.urgency] || 2719929,
-        fields: [
-          { name: 'Category', value: reportData.category, inline: true },
-          { name: 'Student Name', value: reportData.student_name, inline: true },
-          { name: 'Quarantined', value: reportData.is_quarantined ? 'Yes (Shadow Banned)' : 'No', inline: true },
-          { name: 'Description', value: reportData.description }
-        ],
-        timestamp: new Date().toISOString()
-      }]
-    };
-
-    fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(err => console.error('Webhook notification error:', err));
-  }
 }
 
-// Initialize and auto-migrate tables
+// Database Initialization & Schema Auto-Migration
 async function initDB() {
   try {
-    // 1. Primary Reports Table
+    // 1. Reports Table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS reports (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,7 +67,7 @@ async function initDB() {
       )
     `);
 
-    // 3. Banned/Restricted Clients Table
+    // 3. Banned Clients Table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS banned_clients (
         client_id TEXT PRIMARY KEY,
@@ -119,20 +96,18 @@ async function initDB() {
       )
     `);
 
-    console.log('Database initialization and schema checks completed successfully.');
+    console.log('Database initialized successfully.');
   } catch (err) {
-    console.error('Database initialization error:', err);
+    console.error('Database setup error:', err);
   }
 }
 initDB();
 
-// Helper to extract IP
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   return forwarded ? forwarded.split(',')[0].trim() : req.ip || req.socket.remoteAddress;
 }
 
-// Authentication Middleware
 function requireAdmin(req, res, next) {
   if (req.headers['x-admin-pin'] === ADMIN_PIN) {
     next();
@@ -141,7 +116,7 @@ function requireAdmin(req, res, next) {
   }
 }
 
-// INBUILT SSE NOTIFICATION STREAM (Admin UI connects here)
+// SSE Live Stream Endpoint for Browser Notifications
 app.get('/api/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -155,7 +130,7 @@ app.get('/api/events', (req, res) => {
   });
 });
 
-// PUBLIC: Check client status
+// PUBLIC: Check client restriction status
 app.get('/api/client-status/:clientId', async (req, res) => {
   try {
     const { clientId } = req.params;
@@ -192,7 +167,7 @@ app.get('/api/client-status/:clientId', async (req, res) => {
   }
 });
 
-// PUBLIC: Submit Report (Triggers Inbuilt Notifications)
+// PUBLIC: Submit Report (Dispatches SSE Live Alert)
 app.post('/api/reports', async (req, res) => {
   try {
     const clientIp = getClientIp(req);
@@ -239,7 +214,7 @@ app.post('/api/reports', async (req, res) => {
       ]
     });
 
-    // Trigger notification engine
+    // Send real-time event to open Admin dashboards
     notifyAdmins({
       category,
       student_name,
@@ -251,7 +226,7 @@ app.post('/api/reports', async (req, res) => {
 
     res.json({ success: true, message: 'Report submitted successfully' });
   } catch (error) {
-    console.error('Error saving report to DB:', error);
+    console.error('Error saving report:', error);
     res.status(500).json({ error: 'Failed to submit report. Please try again.' });
   }
 });
@@ -260,15 +235,13 @@ app.post('/api/reports', async (req, res) => {
 app.post('/api/request-reset', async (req, res) => {
   try {
     const { clientId, reason } = req.body;
-    if (!clientId) {
-      return res.status(400).json({ error: 'Missing client ID' });
-    }
+    if (!clientId) return res.status(400).json({ error: 'Missing client ID' });
 
     await db.execute({
       sql: 'INSERT OR REPLACE INTO reset_requests (client_id, reason) VALUES (?, ?)',
       args: [String(clientId), String(reason || 'User requested device access reset')]
     });
-    res.json({ success: true, message: 'Reset request submitted to counselors.' });
+    res.json({ success: true, message: 'Reset request submitted.' });
   } catch (err) {
     console.error('Error in /api/request-reset:', err);
     res.status(500).json({ error: 'Failed to send reset request' });
@@ -326,7 +299,7 @@ app.post('/api/reports/:id/warn', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Apply Ban
+// PROTECTED: Restrict Device
 app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -377,14 +350,14 @@ app.post('/api/unban', requireAdmin, async (req, res) => {
     await db.execute({ sql: 'DELETE FROM reset_requests WHERE client_id = ?', args: [clientId] });
     await db.execute({ sql: 'UPDATE reports SET is_quarantined = 0 WHERE client_id = ?', args: [clientId] });
 
-    res.json({ success: true, message: 'Device unbanned and reports restored' });
+    res.json({ success: true, message: 'Device unbanned.' });
   } catch (err) {
     console.error('Error in /api/unban:', err);
     res.status(500).json({ error: 'Failed to unban device' });
   }
 });
 
-// PROTECTED: Update Report Status
+// PROTECTED: Update Status
 app.patch('/api/reports/:id', requireAdmin, async (req, res) => {
   try {
     await db.execute({
@@ -393,7 +366,7 @@ app.patch('/api/reports/:id', requireAdmin, async (req, res) => {
     });
     res.json({ success: true });
   } catch (error) {
-    console.error('Error updating report status:', error);
+    console.error('Error updating status:', error);
     res.status(500).json({ error: 'Failed to update status' });
   }
 });

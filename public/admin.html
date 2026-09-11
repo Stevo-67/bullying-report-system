@@ -1,278 +1,427 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Counselor Dashboard - SafeSpace</title>
-    <style>
-        body { font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px; margin: 0; }
-        h1 { color: #2c3e50; display: inline-block; }
-        table { width: 100%; border-collapse: collapse; background: white; margin-top: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        th, td { padding: 12px; border: 1px solid #dee2e6; text-align: left; vertical-align: top; }
-        th { background-color: #2c3e50; color: white; }
-        
-        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; color: white; display: inline-block; margin-bottom: 2px; }
-        .badge-High { background-color: #d9381e; }
-        .badge-Medium { background-color: #f39c12; }
-        .badge-Low { background-color: #2980b9; }
-        .badge-warned { background-color: #e67e22; }
-        .badge-quarantined { background-color: #8e44ad; }
-        .badge-reset { background-color: #16a085; }
-        .badge-history { background-color: #7f8c8d; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Incident Portal</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #10b981;
+    }
 
-        .quarantined-row { background-color: #fcf3cf !important; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
 
-        button.refresh-btn { padding: 8px 16px; background-color: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button.logout-btn { padding: 8px 16px; background-color: #7f8c8d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; }
-        button.banned-btn { padding: 8px 16px; background-color: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; }
-        
-        button.action-btn { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 2px; margin-bottom: 2px; }
-        button.warn-btn { background-color: #f39c12; color: white; }
-        button.cooldown-btn { background-color: #d35400; color: white; }
-        button.shadow-btn { background-color: #c0392b; color: white; }
-        button.delete-btn { background-color: #7f8c8d; color: white; }
-        button.unban-btn { background-color: #27ae60; color: white; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 2rem;
+      min-height: 100vh;
+    }
 
-        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 700px; max-height: 80vh; overflow-y: auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
 
-        #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(44, 62, 80, 0.95); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .login-card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; width: 300px; }
-        .login-card input { width: 90%; padding: 10px; font-size: 16px; margin: 15px 0; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
-        .login-card button { width: 100%; padding: 10px; background-color: #2c3e50; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
-    </style>
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      background: var(--card);
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border);
+    }
+
+    .indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--danger);
+    }
+
+    .indicator.connected {
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    button {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: var(--border);
+    }
+
+    button.btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    button.btn-danger:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    button.btn-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    button.btn-warning:hover {
+      background: var(--warning);
+      color: white;
+    }
+
+    .table-container {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+
+    th {
+      background-color: rgba(0, 0, 0, 0.2);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr.quarantined-row {
+      background-color: rgba(245, 158, 11, 0.05);
+    }
+
+    .badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .badge.shadow {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--warning);
+    }
+
+    .urgency-high {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    .urgency-medium {
+      color: var(--warning);
+      font-weight: 600;
+    }
+
+    .urgency-low {
+      color: var(--primary);
+    }
+
+    select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      border-radius: 0.25rem;
+      outline: none;
+    }
+
+    .action-group {
+      display: flex;
+      gap: 0.375rem;
+    }
+
+    .action-group button {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+    }
+  </style>
 </head>
 <body>
 
-    <div id="loginOverlay">
-        <div class="login-card">
-            <h2>Counselor Login</h2>
-            <p style="font-size: 14px; color: #666;">Enter access PIN to view reports</p>
-            <input type="password" id="pinInput" placeholder="Enter PIN" onkeydown="if(event.key==='Enter') submitPin()" />
-            <button onclick="submitPin()">Access Portal</button>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Incident Reports Dashboard</h1>
+      </div>
+      <div class="header-actions">
+        <div class="status-badge">
+          <div id="connection-indicator" class="indicator"></div>
+          <span id="connection-text">Connecting...</span>
         </div>
+        <button onclick="changePin()">Change PIN</button>
+      </div>
+    </header>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Category / Student</th>
+            <th>Description</th>
+            <th>Urgency</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="reports-table-body">
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--text-muted);">Loading incidents...</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
+  </div>
 
-    <div id="portalContent" style="display: none;">
-        <div class="header-bar">
-            <h1>Counselor Portal</h1>
-            <div>
-                <button class="banned-btn" onclick="openBannedModal()">⛔ Manage Bans & Resets</button>
-                <button class="refresh-btn" onclick="loadReports()">Refresh</button>
-                <button class="logout-btn" onclick="logout()">Lock Portal</button>
-            </div>
-        </div>
+  <script>
+    let adminPin = localStorage.getItem('adminPin') || '';
+    const alertAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Timestamp (EAT)</th>
-                    <th>Student / Device Context</th>
-                    <th>Urgency / Status Flags</th>
-                    <th>Description</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="reportsTable"></tbody>
-        </table>
-    </div>
+    // Unlock audio context on initial page click
+    document.addEventListener('click', () => {
+      alertAudio.load();
+    }, { once: true });
 
-    <div id="bannedModal" class="modal">
-        <div class="modal-content">
-            <h2>Banned Devices & Reset Requests</h2>
-            <h3>Active Access Reset Requests</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Client ID</th>
-                        <th>Reason Given</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="resetsTable"></tbody>
-            </table>
-
-            <h3 style="margin-top: 20px;">Active Restrictions</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Client ID / IP</th>
-                        <th>Type</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="bannedTable"></tbody>
-            </table>
-            <br>
-            <button onclick="closeBannedModal()" style="padding: 8px 16px;">Close</button>
-        </div>
-    </div>
-
-<script>
-    function getPin() { return sessionStorage.getItem('counselor_pin') || ''; }
-    function submitPin() {
-        sessionStorage.setItem('counselor_pin', document.getElementById('pinInput').value);
-        loadReports();
+    // Request browser notification permissions
+    function initNotificationPermissions() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
     }
 
-    function logout() {
-        sessionStorage.removeItem('counselor_pin');
-        document.getElementById('portalContent').style.display = 'none';
-        document.getElementById('loginOverlay').style.display = 'flex';
-    }
+    // Connect to SSE Live Stream for Instant Notifications
+    function startNotificationStream() {
+      const indicator = document.getElementById('connection-indicator');
+      const text = document.getElementById('connection-text');
 
-    async function loadReports() {
-        const pin = getPin();
+      const eventSource = new EventSource('/api/events');
+
+      eventSource.onopen = () => {
+        indicator.classList.add('connected');
+        text.innerText = 'Live Feed Connected';
+      };
+
+      eventSource.onmessage = (event) => {
         try {
-            const res = await fetch('/api/reports', { headers: { 'x-admin-pin': pin } });
-            if (res.status === 401) {
-                document.getElementById('loginOverlay').style.display = 'flex';
-                document.getElementById('portalContent').style.display = 'none';
-                return;
-            }
+          const report = JSON.parse(event.data);
 
-            const reports = await res.json();
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('portalContent').style.display = 'block';
+          // 1. Play chime
+          alertAudio.play().catch(() => {});
 
-            const tableBody = document.getElementById('reportsTable');
-            tableBody.innerHTML = '';
-
-            reports.forEach(report => {
-                let rawDate = report.timestamp ? report.timestamp.replace(' ', 'T') : '';
-                if (rawDate && !rawDate.endsWith('Z')) rawDate += 'Z';
-                const formattedDate = rawDate ? new Date(rawDate).toLocaleString('en-US', { timeZone: 'Africa/Nairobi' }) : 'N/A';
-
-                const currentStatus = report.status || 'Pending';
-                const urgency = (report.urgency || 'Medium').toUpperCase();
-
-                const row = document.createElement('tr');
-                if (report.is_quarantined) row.className = 'quarantined-row';
-
-                row.innerHTML = `
-                    <td>${report.id}</td>
-                    <td>${formattedDate}</td>
-                    <td>
-                        <strong>${escapeHtml(report.student_name)}</strong><br>
-                        <small style="color: #6c757d;">Category: ${escapeHtml(report.category)}</small><br>
-                        <span class="badge badge-history" title="Total reports from this browser">Device Reports: ${report.device_history_count}</span>
-                    </td>
-                    <td>
-                        <span class="badge badge-${urgency}">${urgency}</span><br>
-                        ${report.is_quarantined ? '<span class="badge badge-quarantined">QUARANTINED</span><br>' : ''}
-                        ${report.is_warned ? '<span class="badge badge-warned">WARNED</span><br>' : ''}
-                        ${report.has_reset_request ? '<span class="badge badge-reset">RESET REQUESTED</span>' : ''}
-                    </td>
-                    <td>${escapeHtml(report.description)}</td>
-                    <td>
-                        <select onchange="updateStatus(${report.id}, this.value)">
-                            <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
-                            <option value="Under Review" ${currentStatus === 'Under Review' ? 'selected' : ''}>Under Review</option>
-                            <option value="Resolved" ${currentStatus === 'Resolved' ? 'selected' : ''}>Resolved</option>
-                        </select>
-                    </td>
-                    <td>
-                        <button class="action-btn warn-btn" onclick="warnUser(${report.id})">Warn</button>
-                        <button class="action-btn cooldown-btn" onclick="banUser(${report.id}, '24h')">24h Cooldown</button>
-                        <button class="action-btn shadow-btn" onclick="banUser(${report.id}, 'shadow')">Shadow Ban</button>
-                        <button class="action-btn delete-btn" onclick="deleteReport(${report.id})">Delete</button>
-                    </td>
-                `;
-                tableBody.appendChild(row);
+          // 2. Show system desktop notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(`🚨 New ${report.urgency} Urgency Incident`, {
+              body: `Category: ${report.category}\nStudent: ${report.student_name}\n"${report.description}"`,
+              icon: '/favicon.ico',
+              requireInteraction: String(report.urgency).toLowerCase() === 'high'
             });
-        } catch (err) { console.error('Failed to load reports:', err); }
+          }
+
+          // 3. Refresh reports list on dashboard automatically
+          fetchReports();
+        } catch (err) {
+          console.error('Error handling event:', err);
+        }
+      };
+
+      eventSource.onerror = () => {
+        indicator.classList.remove('connected');
+        text.innerText = 'Reconnecting...';
+        eventSource.close();
+        setTimeout(startNotificationStream, 3000);
+      };
     }
 
-    async function warnUser(id) {
-        const msg = prompt("Enter warning message for student device:", "Warning: Submitting false reports violates portal guidelines.");
-        if (!msg) return;
+    // Helper for API calls requiring PIN
+    async function adminFetch(url, options = {}) {
+      options.headers = {
+        ...options.headers,
+        'Content-Type': 'application/json',
+        'x-admin-pin': adminPin
+      };
 
-        const res = await fetch(`/api/reports/${id}/warn`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-admin-pin': getPin() },
-            body: JSON.stringify({ message: msg })
-        });
-        if (res.ok) { alert('Warning issued.'); loadReports(); }
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        promptAdminPin();
+        throw new Error('Unauthorized');
+      }
+      return res.json();
     }
 
-    async function banUser(id, banType) {
-        const actionName = banType === '24h' ? '24-hour cooldown' : 'shadow ban (silent divert)';
-        if (!confirm(`Apply ${actionName} to this device?`)) return;
-
-        const res = await fetch(`/api/reports/${id}/ban`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-admin-pin': getPin() },
-            body: JSON.stringify({ banType })
-        });
-        if (res.ok) { alert('Device restriction applied.'); loadReports(); }
+    function promptAdminPin() {
+      const input = prompt('Enter Admin PIN:');
+      if (input) {
+        adminPin = input;
+        localStorage.setItem('adminPin', adminPin);
+        fetchReports();
+      }
     }
 
-    async function updateStatus(id, newStatus) {
-        await fetch(`/api/reports/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'x-admin-pin': getPin() },
-            body: JSON.stringify({ status: newStatus })
+    function changePin() {
+      localStorage.removeItem('adminPin');
+      adminPin = '';
+      promptAdminPin();
+    }
+
+    // Fetch and render reports list
+    async function fetchReports() {
+      try {
+        const reports = await adminFetch('/api/reports');
+        renderTable(reports);
+      } catch (err) {
+        console.error('Error fetching reports:', err);
+      }
+    }
+
+    function renderTable(reports) {
+      const tbody = document.getElementById('reports-table-body');
+
+      if (!reports || reports.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No incident reports found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = reports.map(r => `
+        <tr class="${r.is_quarantined ? 'quarantined-row' : ''}">
+          <td>#${r.id}</td>
+          <td>
+            <strong>${escapeHtml(r.category)}</strong><br>
+            <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(r.student_name)}</span>
+            ${r.is_quarantined ? '<br><span class="badge shadow">Shadow Banned</span>' : ''}
+          </td>
+          <td>${escapeHtml(r.description)}</td>
+          <td><span class="urgency-${String(r.urgency).toLowerCase()}">${escapeHtml(r.urgency)}</span></td>
+          <td>
+            <select onchange="updateStatus(${r.id}, this.value)">
+              <option value="Pending" ${r.status === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option value="In Progress" ${r.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+              <option value="Resolved" ${r.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+            </select>
+          </td>
+          <td>
+            <div class="action-group">
+              <button class="btn-warning" onclick="issueWarning(${r.id})">Warn</button>
+              <button class="btn-danger" onclick="applyBan(${r.id}, '24h')">24h Ban</button>
+              <button class="btn-danger" onclick="applyBan(${r.id}, 'shadow')">Shadow Ban</button>
+              <button onclick="deleteReport(${r.id})">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function updateStatus(id, status) {
+      await adminFetch(`/api/reports/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      });
+    }
+
+    async function issueWarning(id) {
+      const message = prompt('Warning message to deliver to this student device:', 'Warning: Submitting false or improper reports violates school policy.');
+      if (message) {
+        await adminFetch(`/api/reports/${id}/warn`, {
+          method: 'POST',
+          body: JSON.stringify({ message })
         });
+        alert('Warning issued.');
+      }
+    }
+
+    async function applyBan(id, banType) {
+      if (confirm(`Apply ${banType === '24h' ? '24-Hour Cooldown' : 'Shadow Ban'} to this device?`)) {
+        await adminFetch(`/api/reports/${id}/ban`, {
+          method: 'POST',
+          body: JSON.stringify({ banType })
+        });
+        fetchReports();
+      }
     }
 
     async function deleteReport(id) {
-        if (!confirm(`Delete report #${id}?`)) return;
-        const res = await fetch(`/api/reports/${id}`, { method: 'DELETE', headers: { 'x-admin-pin': getPin() } });
-        if (res.ok) loadReports();
-    }
-
-    async function openBannedModal() {
-        const res = await fetch('/api/banned-clients', { headers: { 'x-admin-pin': getPin() } });
-        const data = await res.json();
-        
-        const resetsBody = document.getElementById('resetsTable');
-        resetsBody.innerHTML = '';
-        data.reset_requests.forEach(req => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td><code>${escapeHtml(req.client_id)}</code></td>
-                <td>${escapeHtml(req.reason)}</td>
-                <td><button class="action-btn unban-btn" onclick="unbanDevice('${req.client_id}')">Approve Reset (Unban)</button></td>
-            `;
-            resetsBody.appendChild(row);
-        });
-
-        const bannedBody = document.getElementById('bannedTable');
-        bannedBody.innerHTML = '';
-        data.bans.forEach(item => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td><code>${escapeHtml(item.client_id)}</code></td>
-                <td><strong>${escapeHtml(item.ban_type.toUpperCase())}</strong></td>
-                <td><button class="action-btn unban-btn" onclick="unbanDevice('${item.client_id}')">Clear Restriction</button></td>
-            `;
-            bannedBody.appendChild(row);
-        });
-
-        document.getElementById('bannedModal').style.display = 'flex';
-    }
-
-    function closeBannedModal() { document.getElementById('bannedModal').style.display = 'none'; }
-
-    async function unbanDevice(clientId) {
-        const res = await fetch('/api/unban', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-admin-pin': getPin() },
-            body: JSON.stringify({ clientId })
-        });
-        if (res.ok) { alert('Device restrictions cleared.'); openBannedModal(); loadReports(); }
+      if (confirm('Delete this report entry permanently?')) {
+        await adminFetch(`/api/reports/${id}`, { method: 'DELETE' });
+        fetchReports();
+      }
     }
 
     function escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    if (getPin()) loadReports();
-</script>
+    // Initialize Page
+    document.addEventListener('DOMContentLoaded', () => {
+      initNotificationPermissions();
+      startNotificationStream();
+
+      if (!adminPin) {
+        promptAdminPin();
+      } else {
+        fetchReports();
+      }
+    });
+  </script>
 </body>
 </html>
