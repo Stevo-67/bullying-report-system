@@ -7,46 +7,47 @@ app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Configuration
 const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
-const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';
+// Paste your Webhook URL directly between the quotes below if using Discord/Telegram:
+const WEBHOOK_URL = ''; 
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL || '',
   authToken: process.env.TURSO_AUTH_TOKEN || '',
 });
 
-// Helper function to send instant Discord alerts to counselors
-async function sendDiscordNotification(report) {
-  if (!DISCORD_WEBHOOK_URL) return;
+// Real-time Event Stream Clients (Inbuilt live browser notifications)
+let sseClients = [];
 
-  const colorMap = {
-    'High': 14177054,   // Red
-    'Medium': 15958034, // Orange
-    'Low': 2719929      // Blue
-  };
+function notifyAdmins(reportData) {
+  // 1. Broadcast to open admin dashboards via Server-Sent Events (SSE)
+  sseClients.forEach(client => {
+    client.write(`data: ${JSON.stringify(reportData)}\n\n`);
+  });
 
-  const payload = {
-    embeds: [{
-      title: `🚨 New Report Received (${report.urgency} Urgency)`,
-      color: colorMap[report.urgency] || 2719929,
-      fields: [
-        { name: 'Category', value: report.category, inline: true },
-        { name: 'Student Name', value: report.student_name, inline: true },
-        { name: 'Filter Status', value: report.is_quarantined ? '⚠️ Quarantined (Shadow Ban)' : '✅ Active', inline: true },
-        { name: 'Description', value: report.description }
-      ],
-      timestamp: new Date().toISOString()
-    }]
-  };
+  // 2. Trigger hardcoded Webhook if a URL is provided
+  if (WEBHOOK_URL && WEBHOOK_URL.trim() !== '') {
+    const colorMap = { 'High': 14177054, 'Medium': 15958034, 'Low': 2719929 };
+    const payload = {
+      embeds: [{
+        title: `🚨 New Report Received (${reportData.urgency} Urgency)`,
+        color: colorMap[reportData.urgency] || 2719929,
+        fields: [
+          { name: 'Category', value: reportData.category, inline: true },
+          { name: 'Student Name', value: reportData.student_name, inline: true },
+          { name: 'Quarantined', value: reportData.is_quarantined ? 'Yes (Shadow Banned)' : 'No', inline: true },
+          { name: 'Description', value: reportData.description }
+        ],
+        timestamp: new Date().toISOString()
+      }]
+    };
 
-  try {
-    await fetch(DISCORD_WEBHOOK_URL, {
+    fetch(WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    });
-  } catch (err) {
-    console.error('Failed to send Discord webhook alert:', err);
+    }).catch(err => console.error('Webhook notification error:', err));
   }
 }
 
@@ -69,7 +70,6 @@ async function initDB() {
       )
     `);
 
-    // Schema migrations for existing reports table
     const reportCols = [
       'client_id TEXT',
       'ip_address TEXT',
@@ -78,9 +78,7 @@ async function initDB() {
       'student_name TEXT DEFAULT "Anonymous"'
     ];
     for (const colSpec of reportCols) {
-      try {
-        await db.execute(`ALTER TABLE reports ADD COLUMN ${colSpec}`);
-      } catch (e) {}
+      try { await db.execute(`ALTER TABLE reports ADD COLUMN ${colSpec}`); } catch (e) {}
     }
 
     // 2. Warnings Table
@@ -103,16 +101,13 @@ async function initDB() {
       )
     `);
 
-    // Schema migrations for banned_clients table
     const banCols = [
       "ban_type TEXT DEFAULT 'shadow'",
       "expires_at DATETIME",
       "ip TEXT"
     ];
     for (const colSpec of banCols) {
-      try {
-        await db.execute(`ALTER TABLE banned_clients ADD COLUMN ${colSpec}`);
-      } catch (e) {}
+      try { await db.execute(`ALTER TABLE banned_clients ADD COLUMN ${colSpec}`); } catch (e) {}
     }
 
     // 4. Reset Requests Table
@@ -131,7 +126,7 @@ async function initDB() {
 }
 initDB();
 
-// Helper to extract IP address
+// Helper to extract IP
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   return forwarded ? forwarded.split(',')[0].trim() : req.ip || req.socket.remoteAddress;
@@ -146,7 +141,21 @@ function requireAdmin(req, res, next) {
   }
 }
 
-// PUBLIC: Check client status (warnings & bans)
+// INBUILT SSE NOTIFICATION STREAM (Admin UI connects here)
+app.get('/api/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  sseClients.push(res);
+
+  req.on('close', () => {
+    sseClients = sseClients.filter(client => client !== res);
+  });
+});
+
+// PUBLIC: Check client status
 app.get('/api/client-status/:clientId', async (req, res) => {
   try {
     const { clientId } = req.params;
@@ -183,7 +192,7 @@ app.get('/api/client-status/:clientId', async (req, res) => {
   }
 });
 
-// PUBLIC: Submit Report (Triggers Discord Notification)
+// PUBLIC: Submit Report (Triggers Inbuilt Notifications)
 app.post('/api/reports', async (req, res) => {
   try {
     const clientIp = getClientIp(req);
@@ -230,13 +239,14 @@ app.post('/api/reports', async (req, res) => {
       ]
     });
 
-    // Send instant notification alert
-    sendDiscordNotification({
+    // Trigger notification engine
+    notifyAdmins({
       category,
       student_name,
       urgency,
       description,
-      is_quarantined: isQuarantined
+      is_quarantined: isQuarantined,
+      timestamp: new Date().toISOString()
     });
 
     res.json({ success: true, message: 'Report submitted successfully' });
@@ -265,7 +275,7 @@ app.post('/api/request-reset', async (req, res) => {
   }
 });
 
-// PROTECTED: Fetch All Reports with Context Counts
+// PROTECTED: Fetch All Reports
 app.get('/api/reports', requireAdmin, async (req, res) => {
   try {
     const reportsResult = await db.execute('SELECT * FROM reports ORDER BY id DESC');
@@ -292,7 +302,7 @@ app.get('/api/reports', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Issue Warning to Client Device
+// PROTECTED: Issue Warning
 app.post('/api/reports/:id/warn', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -316,7 +326,7 @@ app.post('/api/reports/:id/warn', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Apply 24h Cooldown or Shadow Ban
+// PROTECTED: Apply Ban
 app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -344,7 +354,7 @@ app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Fetch Banned Devices & Reset Requests
+// PROTECTED: Fetch Banned Devices
 app.get('/api/banned-clients', requireAdmin, async (req, res) => {
   try {
     const bans = await db.execute('SELECT * FROM banned_clients ORDER BY timestamp DESC');
@@ -356,7 +366,7 @@ app.get('/api/banned-clients', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Unban Device & Restore Reports
+// PROTECTED: Unban Device
 app.post('/api/unban', requireAdmin, async (req, res) => {
   try {
     const { clientId } = req.body;
