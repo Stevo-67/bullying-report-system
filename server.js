@@ -6,6 +6,9 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Set Counselor PIN (Default is '1234')
+const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
+
 // Initialize Turso Client
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL || '',
@@ -27,18 +30,9 @@ async function initDB() {
       )
     `);
 
-    // Safely apply schema upgrades for existing tables
-    try {
-      await db.execute(`ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'Pending'`);
-    } catch (e) {}
-
-    try {
-      await db.execute(`ALTER TABLE reports ADD COLUMN student_name TEXT DEFAULT 'Anonymous'`);
-    } catch (e) {}
-
-    try {
-      await db.execute(`ALTER TABLE reports ADD COLUMN urgency TEXT DEFAULT 'Medium'`);
-    } catch (e) {}
+    try { await db.execute(`ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'Pending'`); } catch (e) {}
+    try { await db.execute(`ALTER TABLE reports ADD COLUMN student_name TEXT DEFAULT 'Anonymous'`); } catch (e) {}
+    try { await db.execute(`ALTER TABLE reports ADD COLUMN urgency TEXT DEFAULT 'Medium'`); } catch (e) {}
 
   } catch (err) {
     console.error('Database initialization error:', err);
@@ -46,42 +40,25 @@ async function initDB() {
 }
 initDB();
 
-// GET all reports
-app.get('/api/reports', async (req, res) => {
-  try {
-    const result = await db.execute('SELECT * FROM reports ORDER BY id DESC');
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching reports:', error);
-    res.status(500).json({ error: 'Failed to fetch reports' });
+// Security Middleware: Protect counselor endpoints
+function requireAdmin(req, res, next) {
+  const clientPin = req.headers['x-admin-pin'];
+  if (clientPin === ADMIN_PIN) {
+    next();
+  } else {
+    res.status(401).json({ error: 'Unauthorized: Invalid PIN' });
   }
-});
+}
 
-// POST a new report (handles student_name, category, description, urgency)
+// PUBLIC: POST a new report (No PIN required for students)
 app.post('/api/reports', async (req, res) => {
   try {
     const student_name = 
-      req.body.student_name || 
-      req.body.student || 
-      req.body.name || 
-      req.body.author || 
-      'Anonymous';
-
+      req.body.student_name || req.body.student || req.body.name || req.body.author || 'Anonymous';
     const category = req.body.category || req.body.type || 'General';
-    
     const description = 
-      req.body.description || 
-      req.body.content || 
-      req.body.details || 
-      req.body.message || 
-      req.body.text || 
-      'No description provided';
-
-    const urgency = 
-      req.body.urgency || 
-      req.body.priority || 
-      req.body.level || 
-      'Medium';
+      req.body.description || req.body.content || req.body.details || req.body.message || req.body.text || 'No description provided';
+    const urgency = req.body.urgency || req.body.priority || req.body.level || 'Medium';
 
     await db.execute({
       sql: 'INSERT INTO reports (category, description, status, student_name, urgency) VALUES (?, ?, ?, ?, ?)',
@@ -95,8 +72,19 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
-// PATCH update status
-app.patch('/api/reports/:id', async (req, res) => {
+// PROTECTED: GET all reports (Requires PIN)
+app.get('/api/reports', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.execute('SELECT * FROM reports ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    res.status(500).json({ error: 'Failed to fetch reports' });
+  }
+});
+
+// PROTECTED: PATCH update status (Requires PIN)
+app.patch('/api/reports/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;

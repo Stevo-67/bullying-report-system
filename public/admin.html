@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Counselor Dashboard - SafeSpace</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px; }
+        body { font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px; margin: 0; }
         h1 { color: #2c3e50; }
         table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         th, td { padding: 12px; border: 1px solid #dee2e6; text-align: left; vertical-align: top; }
@@ -15,40 +15,107 @@
         .badge-Medium { background-color: #f39c12; }
         .badge-Low { background-color: #2980b9; }
         button.refresh-btn { padding: 8px 16px; background-color: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button.logout-btn { padding: 8px 16px; background-color: #7f8c8d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; }
+        
+        /* Auth Overlay Styles */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.95); display: flex;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .login-card {
+            background: white; padding: 30px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; width: 300px;
+        }
+        .login-card input {
+            width: 90%; padding: 10px; font-size: 16px; margin: 15px 0;
+            border: 1px solid #ccc; border-radius: 4px; text-align: center;
+        }
+        .login-card button {
+            width: 100%; padding: 10px; background-color: #2c3e50;
+            color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer;
+        }
+        #loginError { color: #d9381e; font-size: 14px; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
 
-    <h1>Counselor Portal</h1>
-    <button class="refresh-btn" onclick="loadReports()">Refresh Submissions</button>
+    <!-- PIN Authentication Overlay -->
+    <div id="loginOverlay">
+        <div class="login-card">
+            <h2>Counselor Login</h2>
+            <p style="font-size: 14px; color: #666;">Enter access PIN to view reports</p>
+            <input type="password" id="pinInput" placeholder="Enter PIN" onkeydown="if(event.key==='Enter') submitPin()" />
+            <button onclick="submitPin()">Access Portal</button>
+            <div id="loginError">Invalid PIN. Please try again.</div>
+        </div>
+    </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Timestamp (EAT)</th>
-                <th>Student / Category</th>
-                <th>Urgency</th>
-                <th>Description / Request</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody id="reportsTable"></tbody>
-    </table>
+    <!-- Protected Portal Content -->
+    <div id="portalContent" style="display: none;">
+        <h1>Counselor Portal</h1>
+        <button class="refresh-btn" onclick="loadReports()">Refresh Submissions</button>
+        <button class="logout-btn" onclick="logout()">Lock Portal</button>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Timestamp (EAT)</th>
+                    <th>Student / Category</th>
+                    <th>Urgency</th>
+                    <th>Description / Request</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="reportsTable"></tbody>
+        </table>
+    </div>
 
 <script>
+    function getPin() {
+        return sessionStorage.getItem('counselor_pin') || '';
+    }
+
+    function submitPin() {
+        const pin = document.getElementById('pinInput').value;
+        sessionStorage.setItem('counselor_pin', pin);
+        loadReports();
+    }
+
+    function logout() {
+        sessionStorage.removeItem('counselor_pin');
+        document.getElementById('portalContent').style.display = 'none';
+        document.getElementById('loginOverlay').style.display = 'flex';
+        document.getElementById('pinInput').value = '';
+    }
+
     async function loadReports() {
+        const pin = getPin();
         try {
-            const res = await fetch('/api/reports');
+            const res = await fetch('/api/reports', {
+                headers: { 'x-admin-pin': pin }
+            });
+
+            if (res.status === 401) {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('portalContent').style.display = 'none';
+                document.getElementById('loginError').style.display = 'block';
+                return;
+            }
+
             const reports = await res.json();
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('portalContent').style.display = 'block';
+            document.getElementById('loginError').style.display = 'none';
+
             const tableBody = document.getElementById('reportsTable');
             tableBody.innerHTML = '';
 
             reports.forEach(report => {
-                // Format SQLite UTC timestamp into East Africa Time (EAT)
                 let rawDate = report.timestamp ? report.timestamp.replace(' ', 'T') : '';
                 if (rawDate && !rawDate.endsWith('Z')) {
-                    rawDate += 'Z'; // Treat SQLite CURRENT_TIMESTAMP as UTC
+                    rawDate += 'Z';
                 }
 
                 const formattedDate = rawDate ? new Date(rawDate).toLocaleString('en-US', {
@@ -91,7 +158,10 @@
         try {
             const res = await fetch(`/api/reports/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-admin-pin': getPin()
+                },
                 body: JSON.stringify({ status: newStatus })
             });
             if (!res.ok) throw new Error('Status update failed');
@@ -110,7 +180,10 @@
             .replace(/'/g, "&#039;");
     }
 
-    loadReports();
+    // Attempt auto-login on page load if session PIN exists
+    if (getPin()) {
+        loadReports();
+    }
 </script>
 
 </body>
