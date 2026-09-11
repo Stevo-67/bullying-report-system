@@ -8,11 +8,47 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL || '',
   authToken: process.env.TURSO_AUTH_TOKEN || '',
 });
+
+// Helper function to send instant Discord alerts to counselors
+async function sendDiscordNotification(report) {
+  if (!DISCORD_WEBHOOK_URL) return;
+
+  const colorMap = {
+    'High': 14177054,   // Red
+    'Medium': 15958034, // Orange
+    'Low': 2719929      // Blue
+  };
+
+  const payload = {
+    embeds: [{
+      title: `🚨 New Report Received (${report.urgency} Urgency)`,
+      color: colorMap[report.urgency] || 2719929,
+      fields: [
+        { name: 'Category', value: report.category, inline: true },
+        { name: 'Student Name', value: report.student_name, inline: true },
+        { name: 'Filter Status', value: report.is_quarantined ? '⚠️ Quarantined (Shadow Ban)' : '✅ Active', inline: true },
+        { name: 'Description', value: report.description }
+      ],
+      timestamp: new Date().toISOString()
+    }]
+  };
+
+  try {
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    console.error('Failed to send Discord webhook alert:', err);
+  }
+}
 
 // Initialize and auto-migrate tables
 async function initDB() {
@@ -44,9 +80,7 @@ async function initDB() {
     for (const colSpec of reportCols) {
       try {
         await db.execute(`ALTER TABLE reports ADD COLUMN ${colSpec}`);
-      } catch (e) {
-        // Ignored if column already exists
-      }
+      } catch (e) {}
     }
 
     // 2. Warnings Table
@@ -69,7 +103,7 @@ async function initDB() {
       )
     `);
 
-    // Schema migrations for banned_clients table (Fixes "no such column: ban_type" error)
+    // Schema migrations for banned_clients table
     const banCols = [
       "ban_type TEXT DEFAULT 'shadow'",
       "expires_at DATETIME",
@@ -78,9 +112,7 @@ async function initDB() {
     for (const colSpec of banCols) {
       try {
         await db.execute(`ALTER TABLE banned_clients ADD COLUMN ${colSpec}`);
-      } catch (e) {
-        // Ignored if column already exists
-      }
+      } catch (e) {}
     }
 
     // 4. Reset Requests Table
@@ -129,10 +161,8 @@ app.get('/api/client-status/:clientId', async (req, res) => {
       if (ban.ban_type === '24h' && ban.expires_at && new Date(ban.expires_at) > new Date()) {
         return res.json({ status: 'cooldown', expires_at: ban.expires_at });
       } else if (ban.ban_type === '24h' && ban.expires_at && new Date(ban.expires_at) <= new Date()) {
-        // Cooldown expired: auto-remove lock
         await db.execute({ sql: 'DELETE FROM banned_clients WHERE client_id = ?', args: [clientId] });
       } else if (ban.ban_type === 'shadow') {
-        // Shadow banned: present as standard clean UI
         return res.json({ status: 'clean' });
       }
     }
@@ -153,7 +183,7 @@ app.get('/api/client-status/:clientId', async (req, res) => {
   }
 });
 
-// PUBLIC: Submit Report
+// PUBLIC: Submit Report (Triggers Discord Notification)
 app.post('/api/reports', async (req, res) => {
   try {
     const clientIp = getClientIp(req);
@@ -172,12 +202,12 @@ app.post('/api/reports', async (req, res) => {
 
       if (ban.ban_type === '24h' && ban.expires_at && new Date(ban.expires_at) > new Date()) {
         if (urgency.toLowerCase() === 'high') {
-          isQuarantined = 0; // Emergency override allowed
+          isQuarantined = 0;
         } else {
           return res.status(429).json({ error: 'Device is on a 24-hour submission cooldown. Emergency (High Urgency) reports can still be submitted.' });
         }
       } else if (ban.ban_type === 'shadow') {
-        isQuarantined = 1; // Silent quarantine divert
+        isQuarantined = 1;
       }
     }
 
@@ -198,6 +228,15 @@ app.post('/api/reports', async (req, res) => {
         String(clientIp),
         isQuarantined
       ]
+    });
+
+    // Send instant notification alert
+    sendDiscordNotification({
+      category,
+      student_name,
+      urgency,
+      description,
+      is_quarantined: isQuarantined
     });
 
     res.json({ success: true, message: 'Report submitted successfully' });
@@ -281,7 +320,7 @@ app.post('/api/reports/:id/warn', requireAdmin, async (req, res) => {
 app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { banType } = req.body; // '24h' or 'shadow'
+    const { banType } = req.body;
     const report = await db.execute({ sql: 'SELECT client_id, ip_address FROM reports WHERE id = ?', args: [id] });
 
     if (report.rows.length > 0 && report.rows[0].client_id) {
