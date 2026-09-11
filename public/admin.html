@@ -7,37 +7,41 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px; margin: 0; }
         h1 { color: #2c3e50; display: inline-block; }
-        table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         th, td { padding: 12px; border: 1px solid #dee2e6; text-align: left; vertical-align: top; }
         th { background-color: #2c3e50; color: white; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; color: white; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; color: white; display: inline-block; margin-bottom: 2px; }
         .badge-High { background-color: #d9381e; }
         .badge-Medium { background-color: #f39c12; }
         .badge-Low { background-color: #2980b9; }
-        .badge-warned { background-color: #e67e22; margin-left: 5px; }
+        .badge-warned { background-color: #e67e22; }
+        .badge-quarantined { background-color: #8e44ad; }
+        .badge-reset { background-color: #16a085; }
+        .badge-history { background-color: #7f8c8d; }
+
+        .quarantined-row { background-color: #fcf3cf !important; }
 
         button.refresh-btn { padding: 8px 16px; background-color: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; }
         button.logout-btn { padding: 8px 16px; background-color: #7f8c8d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; }
-        button.notify-btn { padding: 8px 16px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; }
         button.banned-btn { padding: 8px 16px; background-color: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; }
         
-        button.action-btn { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 2px; }
+        button.action-btn { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 2px; margin-bottom: 2px; }
         button.warn-btn { background-color: #f39c12; color: white; }
-        button.ban-btn { background-color: #c0392b; color: white; }
+        button.cooldown-btn { background-color: #d35400; color: white; }
+        button.shadow-btn { background-color: #c0392b; color: white; }
         button.delete-btn { background-color: #7f8c8d; color: white; }
         button.unban-btn { background-color: #27ae60; color: white; }
 
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        #notificationBanner { display: none; background-color: #27ae60; color: white; padding: 12px; border-radius: 4px; font-weight: bold; margin-bottom: 15px; text-align: center; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 600px; max-height: 80vh; overflow-y: auto; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 700px; max-height: 80vh; overflow-y: auto; }
 
         #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(44, 62, 80, 0.95); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .login-card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; width: 300px; }
         .login-card input { width: 90%; padding: 10px; font-size: 16px; margin: 15px 0; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
         .login-card button { width: 100%; padding: 10px; background-color: #2c3e50; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
-        #loginError { color: #d9381e; font-size: 14px; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
@@ -48,7 +52,6 @@
             <p style="font-size: 14px; color: #666;">Enter access PIN to view reports</p>
             <input type="password" id="pinInput" placeholder="Enter PIN" onkeydown="if(event.key==='Enter') submitPin()" />
             <button onclick="submitPin()">Access Portal</button>
-            <div id="loginError">Invalid PIN. Please try again.</div>
         </div>
     </div>
 
@@ -56,22 +59,19 @@
         <div class="header-bar">
             <h1>Counselor Portal</h1>
             <div>
-                <button class="notify-btn" onclick="enableDesktopNotifications()">🔔 Enable Desktop Alerts</button>
-                <button class="banned-btn" onclick="openBannedModal()">⛔ Manage Bans</button>
+                <button class="banned-btn" onclick="openBannedModal()">⛔ Manage Bans & Resets</button>
                 <button class="refresh-btn" onclick="loadReports()">Refresh</button>
                 <button class="logout-btn" onclick="logout()">Lock Portal</button>
             </div>
         </div>
-
-        <div id="notificationBanner">🔔 New report received! Table updated.</div>
 
         <table>
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Timestamp (EAT)</th>
-                    <th>Student / Category</th>
-                    <th>Urgency</th>
+                    <th>Student / Device Context</th>
+                    <th>Urgency / Status Flags</th>
                     <th>Description</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -83,13 +83,25 @@
 
     <div id="bannedModal" class="modal">
         <div class="modal-content">
-            <h2>Banned Devices</h2>
-            <p>Review and unban devices if they were suspended by mistake.</p>
+            <h2>Banned Devices & Reset Requests</h2>
+            <h3>Active Access Reset Requests</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Client ID</th>
+                        <th>Reason Given</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="resetsTable"></tbody>
+            </table>
+
+            <h3 style="margin-top: 20px;">Active Restrictions</h3>
             <table>
                 <thead>
                     <tr>
                         <th>Client ID / IP</th>
-                        <th>Banned Date</th>
+                        <th>Type</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -101,9 +113,6 @@
     </div>
 
 <script>
-    let lastMaxReportId = 0;
-    let autoPollInterval = null;
-
     function getPin() { return sessionStorage.getItem('counselor_pin') || ''; }
     function submitPin() {
         sessionStorage.setItem('counselor_pin', document.getElementById('pinInput').value);
@@ -112,25 +121,8 @@
 
     function logout() {
         sessionStorage.removeItem('counselor_pin');
-        if (autoPollInterval) clearInterval(autoPollInterval);
         document.getElementById('portalContent').style.display = 'none';
         document.getElementById('loginOverlay').style.display = 'flex';
-    }
-
-    function playNotificationSound() {
-        try {
-            const bell = new Audio('/mm_clocktower_bell.mp3');
-            bell.volume = 1.0;
-            bell.play().catch(e => console.error('Audio playback blocked:', e));
-        } catch(e) { console.error('Audio error:', e); }
-    }
-
-    function enableDesktopNotifications() {
-        if ("Notification" in window) {
-            Notification.requestPermission().then(p => {
-                if (p === "granted") { playNotificationSound(); alert("Desktop notifications enabled!"); }
-            });
-        }
     }
 
     async function loadReports() {
@@ -147,17 +139,6 @@
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('portalContent').style.display = 'block';
 
-            if (reports.length > 0) {
-                const currentMaxId = reports[0].id;
-                if (lastMaxReportId !== 0 && currentMaxId > lastMaxReportId) {
-                    playNotificationSound();
-                    const banner = document.getElementById('notificationBanner');
-                    banner.style.display = 'block';
-                    setTimeout(() => { banner.style.display = 'none'; }, 5000);
-                }
-                lastMaxReportId = currentMaxId;
-            }
-
             const tableBody = document.getElementById('reportsTable');
             tableBody.innerHTML = '';
 
@@ -170,16 +151,21 @@
                 const urgency = (report.urgency || 'Medium').toUpperCase();
 
                 const row = document.createElement('tr');
+                if (report.is_quarantined) row.className = 'quarantined-row';
+
                 row.innerHTML = `
                     <td>${report.id}</td>
                     <td>${formattedDate}</td>
                     <td>
                         <strong>${escapeHtml(report.student_name)}</strong><br>
-                        <small style="color: #6c757d;">Category: ${escapeHtml(report.category)}</small>
+                        <small style="color: #6c757d;">Category: ${escapeHtml(report.category)}</small><br>
+                        <span class="badge badge-history" title="Total reports from this browser">Device Reports: ${report.device_history_count}</span>
                     </td>
                     <td>
-                        <span class="badge badge-${urgency}">${urgency}</span>
-                        ${report.is_warned ? '<span class="badge badge-warned">WARNED</span>' : ''}
+                        <span class="badge badge-${urgency}">${urgency}</span><br>
+                        ${report.is_quarantined ? '<span class="badge badge-quarantined">QUARANTINED</span><br>' : ''}
+                        ${report.is_warned ? '<span class="badge badge-warned">WARNED</span><br>' : ''}
+                        ${report.has_reset_request ? '<span class="badge badge-reset">RESET REQUESTED</span>' : ''}
                     </td>
                     <td>${escapeHtml(report.description)}</td>
                     <td>
@@ -191,23 +177,18 @@
                     </td>
                     <td>
                         <button class="action-btn warn-btn" onclick="warnUser(${report.id})">Warn</button>
-                        ${report.is_warned 
-                            ? `<button class="action-btn ban-btn" onclick="banUser(${report.id})">Ban Device</button>` 
-                            : `<button class="action-btn ban-btn" style="opacity: 0.5;" onclick="alert('Please issue a warning before banning this device.')">Ban Device</button>`
-                        }
+                        <button class="action-btn cooldown-btn" onclick="banUser(${report.id}, '24h')">24h Cooldown</button>
+                        <button class="action-btn shadow-btn" onclick="banUser(${report.id}, 'shadow')">Shadow Ban</button>
                         <button class="action-btn delete-btn" onclick="deleteReport(${report.id})">Delete</button>
                     </td>
                 `;
                 tableBody.appendChild(row);
             });
-
-            if (!autoPollInterval) autoPollInterval = setInterval(loadReports, 10000);
-
         } catch (err) { console.error('Failed to load reports:', err); }
     }
 
     async function warnUser(id) {
-        const msg = prompt("Enter warning message to display on the user's screen:", "Warning: Submitting false or troll reports violates portal rules.");
+        const msg = prompt("Enter warning message for student device:", "Warning: Submitting false reports violates portal guidelines.");
         if (!msg) return;
 
         const res = await fetch(`/api/reports/${id}/warn`, {
@@ -215,13 +196,19 @@
             headers: { 'Content-Type': 'application/json', 'x-admin-pin': getPin() },
             body: JSON.stringify({ message: msg })
         });
-        if (res.ok) { alert('Warning issued successfully.'); loadReports(); }
+        if (res.ok) { alert('Warning issued.'); loadReports(); }
     }
 
-    async function banUser(id) {
-        if (!confirm(`Ban this device? The user will no longer be able to submit reports.`)) return;
-        const res = await fetch(`/api/reports/${id}/ban`, { method: 'POST', headers: { 'x-admin-pin': getPin() } });
-        if (res.ok) { alert('Device banned.'); loadReports(); }
+    async function banUser(id, banType) {
+        const actionName = banType === '24h' ? '24-hour cooldown' : 'shadow ban (silent divert)';
+        if (!confirm(`Apply ${actionName} to this device?`)) return;
+
+        const res = await fetch(`/api/reports/${id}/ban`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-pin': getPin() },
+            body: JSON.stringify({ banType })
+        });
+        if (res.ok) { alert('Device restriction applied.'); loadReports(); }
     }
 
     async function updateStatus(id, newStatus) {
@@ -240,18 +227,30 @@
 
     async function openBannedModal() {
         const res = await fetch('/api/banned-clients', { headers: { 'x-admin-pin': getPin() } });
-        const banned = await res.json();
-        const tbody = document.getElementById('bannedTable');
-        tbody.innerHTML = '';
-
-        banned.forEach(item => {
+        const data = await res.json();
+        
+        const resetsBody = document.getElementById('resetsTable');
+        resetsBody.innerHTML = '';
+        data.reset_requests.forEach(req => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><code>${escapeHtml(item.client_id)}</code><br><small>IP: ${escapeHtml(item.ip || 'N/A')}</small></td>
-                <td>${new Date(item.timestamp).toLocaleString()}</td>
-                <td><button class="action-btn unban-btn" onclick="unbanDevice('${item.client_id}')">Unban</button></td>
+                <td><code>${escapeHtml(req.client_id)}</code></td>
+                <td>${escapeHtml(req.reason)}</td>
+                <td><button class="action-btn unban-btn" onclick="unbanDevice('${req.client_id}')">Approve Reset (Unban)</button></td>
             `;
-            tbody.appendChild(row);
+            resetsBody.appendChild(row);
+        });
+
+        const bannedBody = document.getElementById('bannedTable');
+        bannedBody.innerHTML = '';
+        data.bans.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><code>${escapeHtml(item.client_id)}</code></td>
+                <td><strong>${escapeHtml(item.ban_type.toUpperCase())}</strong></td>
+                <td><button class="action-btn unban-btn" onclick="unbanDevice('${item.client_id}')">Clear Restriction</button></td>
+            `;
+            bannedBody.appendChild(row);
         });
 
         document.getElementById('bannedModal').style.display = 'flex';
@@ -260,13 +259,12 @@
     function closeBannedModal() { document.getElementById('bannedModal').style.display = 'none'; }
 
     async function unbanDevice(clientId) {
-        if (!confirm('Unban this device?')) return;
         const res = await fetch('/api/unban', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-admin-pin': getPin() },
             body: JSON.stringify({ clientId })
         });
-        if (res.ok) { alert('Device unbanned.'); openBannedModal(); loadReports(); }
+        if (res.ok) { alert('Device restrictions cleared.'); openBannedModal(); loadReports(); }
     }
 
     function escapeHtml(str) {

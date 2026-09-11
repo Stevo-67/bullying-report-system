@@ -26,6 +26,7 @@ async function initDB() {
         urgency TEXT DEFAULT 'Medium',
         client_id TEXT,
         ip_address TEXT,
+        is_quarantined INTEGER DEFAULT 0,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -42,11 +43,21 @@ async function initDB() {
       CREATE TABLE IF NOT EXISTS banned_clients (
         client_id TEXT PRIMARY KEY,
         ip TEXT,
+        ban_type TEXT DEFAULT 'shadow',
+        expires_at DATETIME,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS reset_requests (
+        client_id TEXT PRIMARY KEY,
         reason TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
+    try { await db.execute(`ALTER TABLE reports ADD COLUMN is_quarantined INTEGER DEFAULT 0`); } catch (e) {}
     try { await db.execute(`ALTER TABLE reports ADD COLUMN client_id TEXT`); } catch (e) {}
     try { await db.execute(`ALTER TABLE reports ADD COLUMN ip_address TEXT`); } catch (e) {}
 
@@ -69,18 +80,27 @@ function requireAdmin(req, res, next) {
   }
 }
 
-// PUBLIC: Check client warning / ban status
+// PUBLIC: Check client status (warnings & bans)
 app.get('/api/client-status/:clientId', async (req, res) => {
   try {
     const { clientId } = req.params;
 
     const banCheck = await db.execute({
-      sql: 'SELECT client_id FROM banned_clients WHERE client_id = ?',
+      sql: 'SELECT ban_type, expires_at FROM banned_clients WHERE client_id = ?',
       args: [clientId]
     });
 
     if (banCheck.rows.length > 0) {
-      return res.json({ status: 'banned' });
+      const ban = banCheck.rows[0];
+      if (ban.ban_type === '24h' && new Date(ban.expires_at) > new Date()) {
+        return res.json({ status: 'cooldown', expires_at: ban.expires_at });
+      } else if (ban.ban_type === '24h' && new Date(ban.expires_at) <= new Date()) {
+        // Cooldown expired, clear automatically
+        await db.execute({ sql: 'DELETE FROM banned_clients WHERE client_id = ?', args: [clientId] });
+      } else if (ban.ban_type === 'shadow') {
+        // Shadow banned clients are treated as clean on frontend so troll thinks it works
+        return res.json({ status: 'clean' });
+      }
     }
 
     const warnCheck = await db.execute({
@@ -98,29 +118,43 @@ app.get('/api/client-status/:clientId', async (req, res) => {
   }
 });
 
-// PUBLIC: Submit Report
+// PUBLIC: Submit Report (Supports Shadow-Ban & Emergency Override)
 app.post('/api/reports', async (req, res) => {
   try {
     const clientIp = getClientIp(req);
     const clientId = req.body.client_id || 'unknown';
+    const urgency = req.body.urgency || 'Medium';
 
     const banCheck = await db.execute({
-      sql: 'SELECT client_id FROM banned_clients WHERE client_id = ?',
+      sql: 'SELECT ban_type, expires_at FROM banned_clients WHERE client_id = ?',
       args: [clientId]
     });
 
+    let isQuarantined = 0;
+
     if (banCheck.rows.length > 0) {
-      return res.status(403).json({ error: 'Your device has been suspended from submitting reports.' });
+      const ban = banCheck.rows[0];
+
+      if (ban.ban_type === '24h' && new Date(ban.expires_at) > new Date()) {
+        // High urgency bypasses 24h cooldown but flags for counselor review
+        if (urgency.toLowerCase() === 'high') {
+          isQuarantined = 0; 
+        } else {
+          return res.status(429).json({ error: 'Device is on a 24-hour submission cooldown. High-urgency emergencies can still be submitted.' });
+        }
+      } else if (ban.ban_type === 'shadow') {
+        // Shadow ban: silently divert to quarantine
+        isQuarantined = 1;
+      }
     }
 
-    const student_name = req.body.student_name || req.body.student || 'Anonymous';
+    const student_name = req.body.student_name || 'Anonymous';
     const category = req.body.category || 'General';
-    const description = req.body.description || req.body.message || 'No description provided';
-    const urgency = req.body.urgency || 'Medium';
+    const description = req.body.description || 'No description provided';
 
     await db.execute({
-      sql: 'INSERT INTO reports (category, description, status, student_name, urgency, client_id, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      args: [String(category), String(description), 'Pending', String(student_name), String(urgency), String(clientId), String(clientIp)]
+      sql: 'INSERT INTO reports (category, description, status, student_name, urgency, client_id, ip_address, is_quarantined) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      args: [String(category), String(description), 'Pending', String(student_name), String(urgency), String(clientId), String(clientIp), isQuarantined]
     });
 
     res.json({ success: true, message: 'Report submitted successfully' });
@@ -130,17 +164,38 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
-// PROTECTED: Fetch reports and include warning status
+// PUBLIC: Request Access Reset
+app.post('/api/request-reset', async (req, res) => {
+  try {
+    const { clientId, reason } = req.body;
+    await db.execute({
+      sql: 'INSERT OR REPLACE INTO reset_requests (client_id, reason) VALUES (?, ?)',
+      args: [clientId, reason || 'User requested device access reset']
+    });
+    res.json({ success: true, message: 'Reset request submitted to counselors.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send reset request' });
+  }
+});
+
+// PROTECTED: Fetch Reports with Device History Counts
 app.get('/api/reports', requireAdmin, async (req, res) => {
   try {
     const reportsResult = await db.execute('SELECT * FROM reports ORDER BY id DESC');
     const warningsResult = await db.execute('SELECT client_id FROM warnings');
-    
-    const warnedClientIds = new Set(warningsResult.rows.map(w => w.client_id));
+    const resetRequests = await db.execute('SELECT client_id FROM reset_requests');
+    const historyCounts = await db.execute('SELECT client_id, COUNT(*) as count FROM reports GROUP BY client_id');
+
+    const warnedSet = new Set(warningsResult.rows.map(w => w.client_id));
+    const resetSet = new Set(resetRequests.rows.map(r => r.client_id));
+    const countMap = {};
+    historyCounts.rows.forEach(h => { countMap[h.client_id] = h.count; });
 
     const reports = reportsResult.rows.map(report => ({
       ...report,
-      is_warned: warnedClientIds.has(report.client_id)
+      is_warned: warnedSet.has(report.client_id),
+      has_reset_request: resetSet.has(report.client_id),
+      device_history_count: countMap[report.client_id] || 1
     }));
 
     res.json(reports);
@@ -149,7 +204,7 @@ app.get('/api/reports', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Issue warning to client
+// PROTECTED: Warn Client
 app.post('/api/reports/:id/warn', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -157,70 +212,78 @@ app.post('/api/reports/:id/warn', requireAdmin, async (req, res) => {
 
     if (report.rows.length > 0 && report.rows[0].client_id) {
       const clientId = report.rows[0].client_id;
-      const warningMsg = req.body.message || 'Warning: Submitting troll or inappropriate reports is prohibited.';
+      const warningMsg = req.body.message || 'Warning: Submitting false reports violates school policy.';
 
       await db.execute({
         sql: 'INSERT OR REPLACE INTO warnings (client_id, warning_message) VALUES (?, ?)',
         args: [clientId, warningMsg]
       });
 
-      return res.json({ success: true, message: 'Warning issued to client device.' });
+      return res.json({ success: true, message: 'Warning sent.' });
     }
-
-    res.status(404).json({ error: 'Report or device ID not found.' });
+    res.status(404).json({ error: 'Report not found' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to send warning.' });
+    res.status(500).json({ error: 'Failed to send warning' });
   }
 });
 
-// PROTECTED: Ban client device
+// PROTECTED: Apply Cooldown (24h) or Shadow Ban
 app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const { banType } = req.body; // '24h' or 'shadow'
     const report = await db.execute({ sql: 'SELECT client_id, ip_address FROM reports WHERE id = ?', args: [id] });
 
     if (report.rows.length > 0 && report.rows[0].client_id) {
       const clientId = report.rows[0].client_id;
       const ip = report.rows[0].ip_address;
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
       await db.execute({
-        sql: 'INSERT OR IGNORE INTO banned_clients (client_id, ip, reason) VALUES (?, ?, ?)',
-        args: [clientId, ip, 'Repeated troll reports after warning']
+        sql: 'INSERT OR REPLACE INTO banned_clients (client_id, ip, ban_type, expires_at) VALUES (?, ?, ?, ?)',
+        args: [clientId, ip, banType || 'shadow', banType === '24h' ? expiresAt : null]
       });
 
+      // If shadow ban or cooldown applied, remove the offending report
       await db.execute({ sql: 'DELETE FROM reports WHERE id = ?', args: [id] });
-      return res.json({ success: true, message: 'Device banned and report removed.' });
+      return res.json({ success: true, message: `${banType === '24h' ? '24-Hour Cooldown' : 'Shadow Ban'} applied.` });
     }
 
-    res.status(404).json({ error: 'Report or device ID not found.' });
+    res.status(404).json({ error: 'Report not found' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to ban device.' });
+    res.status(500).json({ error: 'Failed to restrict device' });
   }
 });
 
-// PROTECTED: Fetch banned clients list
+// PROTECTED: Fetch Banned Clients & Reset Requests
 app.get('/api/banned-clients', requireAdmin, async (req, res) => {
   try {
-    const result = await db.execute('SELECT * FROM banned_clients ORDER BY timestamp DESC');
-    res.json(result.rows);
+    const bans = await db.execute('SELECT * FROM banned_clients ORDER BY timestamp DESC');
+    const resets = await db.execute('SELECT * FROM reset_requests ORDER BY timestamp DESC');
+    res.json({ bans: bans.rows, reset_requests: resets.rows });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch banned clients' });
+    res.status(500).json({ error: 'Failed to fetch bans' });
   }
 });
 
-// PROTECTED: Unban client device
+// PROTECTED: Unban Client & Clear Reset Request
 app.post('/api/unban', requireAdmin, async (req, res) => {
   try {
     const { clientId } = req.body;
     await db.execute({ sql: 'DELETE FROM banned_clients WHERE client_id = ?', args: [clientId] });
     await db.execute({ sql: 'DELETE FROM warnings WHERE client_id = ?', args: [clientId] });
-    res.json({ success: true, message: 'Device unbanned successfully' });
+    await db.execute({ sql: 'DELETE FROM reset_requests WHERE client_id = ?', args: [clientId] });
+    
+    // Un-quarantine previous reports from this device
+    await db.execute({ sql: 'UPDATE reports SET is_quarantined = 0 WHERE client_id = ?', args: [clientId] });
+
+    res.json({ success: true, message: 'Device unbanned and restored' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to unban device' });
   }
 });
 
-// PROTECTED: Update report status
+// PROTECTED: Update Report Status
 app.patch('/api/reports/:id', requireAdmin, async (req, res) => {
   try {
     await db.execute({
@@ -233,7 +296,7 @@ app.patch('/api/reports/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Delete report
+// PROTECTED: Delete Report
 app.delete('/api/reports/:id', requireAdmin, async (req, res) => {
   try {
     await db.execute({ sql: 'DELETE FROM reports WHERE id = ?', args: [req.params.id] });
