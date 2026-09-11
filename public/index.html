@@ -1,5 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSpace - Submit a Report</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); width: 100%; max-width: 500px; }
+        h2 { color: #2c3e50; margin-top: 0; margin-bottom: 20px; text-align: center; }
+        .warning-banner { display: none; background: #e67e22; color: white; padding: 12px; border-radius: 6px; font-weight: bold; margin-bottom: 20px; text-align: center; font-size: 14px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: #34495e; font-size: 14px; }
+        input[type="text"], select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; transition: border 0.2s; }
+        input[type="text"]:focus, select:focus, textarea:focus { border-color: #3498db; outline: none; }
+        textarea { resize: vertical; min-height: 100px; }
+        button.submit-btn { width: 100%; padding: 12px; background-color: #27ae60; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button.submit-btn:hover { background-color: #219150; }
+        #responseMessage { margin-top: 15px; text-align: center; font-weight: bold; font-size: 14px; }
+        .success { color: #27ae60; }
+        .error { color: #c0392b; }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="mainContainer">
+        <div id="warningBanner" class="warning-banner"></div>
+        <h2>SafeSpace Anonymous Reporting</h2>
+        
+        <form id="reportForm">
+            <div class="form-group">
+                <label for="studentName">Your Name (Optional)</label>
+                <input type="text" id="studentName" placeholder="Leave blank to stay Anonymous">
+            </div>
+
+            <div class="form-group">
+                <label for="category">Report Category</label>
+                <select id="category" required>
+                    <option value="General">General Issue</option>
+                    <option value="Bullying">Bullying / Harassment</option>
+                    <option value="Academic">Academic Support</option>
+                    <option value="Mental Health">Mental Health / Well-being</option>
+                    <option value="Safety">Safety Concern</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="urgency">Urgency Level</label>
+                <select id="urgency" required>
+                    <option value="Low">Low</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="High">High</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" placeholder="Please describe what happened..." required></textarea>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">Submit Report</button>
+            <div id="responseMessage"></div>
+        </form>
+    </div>
+
 <script>
-    // Get or create persistent device ID
     function getClientId() {
         let clientId = localStorage.getItem('safespace_client_id');
         if (!clientId) {
@@ -9,7 +74,6 @@
         return clientId;
     }
 
-    // Check device status on page load
     async function checkDeviceStatus() {
         const clientId = getClientId();
         try {
@@ -17,29 +81,67 @@
             const data = await res.json();
 
             if (data.status === 'banned') {
-                document.body.innerHTML = `
-                    <div style="max-width:500px; margin: 80px auto; text-align:center; font-family: sans-serif;">
-                        <h2 style="color: #c0392b;">Access Suspended</h2>
-                        <p style="color: #555;">This device has been suspended from submitting reports due to policy violations.</p>
+                document.getElementById('mainContainer').innerHTML = `
+                    <div style="text-align:center; padding: 20px;">
+                        <h2 style="color: #c0392b; margin-bottom: 10px;">Access Suspended</h2>
+                        <p style="color: #555; line-height: 1.5;">This device has been suspended from submitting reports due to policy violations.</p>
                     </div>
                 `;
             } else if (data.status === 'warned') {
-                const banner = document.createElement('div');
-                banner.style.cssText = 'background:#e67e22; color:white; padding:15px; text-align:center; font-weight:bold; font-family:sans-serif; margin-bottom:20px; border-radius:4px;';
+                const banner = document.getElementById('warningBanner');
                 banner.innerText = `⚠️ Counselor Warning: ${data.message}`;
-                document.body.insertBefore(banner, document.body.firstChild);
+                banner.style.display = 'block';
             }
-        } catch(e) { console.error('Status check error:', e); }
+        } catch (e) {
+            console.error('Status check error:', e);
+        }
     }
-    checkDeviceStatus();
 
-    // Ensure your form submission fetch payload includes client_id:
-    // Example:
-    // const payload = {
-    //     client_id: getClientId(),
-    //     student_name: nameInput.value,
-    //     category: categoryInput.value,
-    //     description: descriptionInput.value,
-    //     urgency: urgencyInput.value
-    // };
+    document.getElementById('reportForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const msgDiv = document.getElementById('responseMessage');
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Submitting...';
+        msgDiv.className = '';
+        msgDiv.innerText = '';
+
+        const payload = {
+            client_id: getClientId(),
+            student_name: document.getElementById('studentName').value.trim() || 'Anonymous',
+            category: document.getElementById('category').value,
+            urgency: document.getElementById('urgency').value,
+            description: document.getElementById('description').value.trim()
+        };
+
+        try {
+            const res = await fetch('/api/reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                msgDiv.className = 'success';
+                msgDiv.innerText = 'Report submitted successfully. Thank you.';
+                document.getElementById('reportForm').reset();
+            } else {
+                msgDiv.className = 'error';
+                msgDiv.innerText = data.error || 'Failed to submit report.';
+            }
+        } catch (err) {
+            msgDiv.className = 'error';
+            msgDiv.innerText = 'Connection error. Please try again.';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Submit Report';
+        }
+    });
+
+    checkDeviceStatus();
 </script>
+</body>
+</html>
