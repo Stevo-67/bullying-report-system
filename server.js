@@ -14,8 +14,10 @@ const db = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN || '',
 });
 
+// Initialize and auto-migrate tables
 async function initDB() {
   try {
+    // 1. Primary Reports Table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS reports (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,6 +33,23 @@ async function initDB() {
       )
     `);
 
+    // Schema migrations for existing reports table
+    const reportCols = [
+      'client_id TEXT',
+      'ip_address TEXT',
+      'is_quarantined INTEGER DEFAULT 0',
+      'urgency TEXT DEFAULT "Medium"',
+      'student_name TEXT DEFAULT "Anonymous"'
+    ];
+    for (const colSpec of reportCols) {
+      try {
+        await db.execute(`ALTER TABLE reports ADD COLUMN ${colSpec}`);
+      } catch (e) {
+        // Ignored if column already exists
+      }
+    }
+
+    // 2. Warnings Table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS warnings (
         client_id TEXT PRIMARY KEY,
@@ -39,6 +58,7 @@ async function initDB() {
       )
     `);
 
+    // 3. Banned/Restricted Clients Table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS banned_clients (
         client_id TEXT PRIMARY KEY,
@@ -49,6 +69,21 @@ async function initDB() {
       )
     `);
 
+    // Schema migrations for banned_clients table (Fixes "no such column: ban_type" error)
+    const banCols = [
+      "ban_type TEXT DEFAULT 'shadow'",
+      "expires_at DATETIME",
+      "ip TEXT"
+    ];
+    for (const colSpec of banCols) {
+      try {
+        await db.execute(`ALTER TABLE banned_clients ADD COLUMN ${colSpec}`);
+      } catch (e) {
+        // Ignored if column already exists
+      }
+    }
+
+    // 4. Reset Requests Table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS reset_requests (
         client_id TEXT PRIMARY KEY,
@@ -57,21 +92,20 @@ async function initDB() {
       )
     `);
 
-    try { await db.execute(`ALTER TABLE reports ADD COLUMN is_quarantined INTEGER DEFAULT 0`); } catch (e) {}
-    try { await db.execute(`ALTER TABLE reports ADD COLUMN client_id TEXT`); } catch (e) {}
-    try { await db.execute(`ALTER TABLE reports ADD COLUMN ip_address TEXT`); } catch (e) {}
-
+    console.log('Database initialization and schema checks completed successfully.');
   } catch (err) {
-    console.error('Database setup error:', err);
+    console.error('Database initialization error:', err);
   }
 }
 initDB();
 
+// Helper to extract IP address
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   return forwarded ? forwarded.split(',')[0].trim() : req.ip || req.socket.remoteAddress;
 }
 
+// Authentication Middleware
 function requireAdmin(req, res, next) {
   if (req.headers['x-admin-pin'] === ADMIN_PIN) {
     next();
@@ -92,13 +126,13 @@ app.get('/api/client-status/:clientId', async (req, res) => {
 
     if (banCheck.rows.length > 0) {
       const ban = banCheck.rows[0];
-      if (ban.ban_type === '24h' && new Date(ban.expires_at) > new Date()) {
+      if (ban.ban_type === '24h' && ban.expires_at && new Date(ban.expires_at) > new Date()) {
         return res.json({ status: 'cooldown', expires_at: ban.expires_at });
-      } else if (ban.ban_type === '24h' && new Date(ban.expires_at) <= new Date()) {
-        // Cooldown expired, clear automatically
+      } else if (ban.ban_type === '24h' && ban.expires_at && new Date(ban.expires_at) <= new Date()) {
+        // Cooldown expired: auto-remove lock
         await db.execute({ sql: 'DELETE FROM banned_clients WHERE client_id = ?', args: [clientId] });
       } else if (ban.ban_type === 'shadow') {
-        // Shadow banned clients are treated as clean on frontend so troll thinks it works
+        // Shadow banned: present as standard clean UI
         return res.json({ status: 'clean' });
       }
     }
@@ -114,11 +148,12 @@ app.get('/api/client-status/:clientId', async (req, res) => {
 
     res.json({ status: 'clean' });
   } catch (err) {
+    console.error('Error in /api/client-status:', err);
     res.status(500).json({ error: 'Failed to fetch status' });
   }
 });
 
-// PUBLIC: Submit Report (Supports Shadow-Ban & Emergency Override)
+// PUBLIC: Submit Report
 app.post('/api/reports', async (req, res) => {
   try {
     const clientIp = getClientIp(req);
@@ -135,16 +170,14 @@ app.post('/api/reports', async (req, res) => {
     if (banCheck.rows.length > 0) {
       const ban = banCheck.rows[0];
 
-      if (ban.ban_type === '24h' && new Date(ban.expires_at) > new Date()) {
-        // High urgency bypasses 24h cooldown but flags for counselor review
+      if (ban.ban_type === '24h' && ban.expires_at && new Date(ban.expires_at) > new Date()) {
         if (urgency.toLowerCase() === 'high') {
-          isQuarantined = 0; 
+          isQuarantined = 0; // Emergency override allowed
         } else {
-          return res.status(429).json({ error: 'Device is on a 24-hour submission cooldown. High-urgency emergencies can still be submitted.' });
+          return res.status(429).json({ error: 'Device is on a 24-hour submission cooldown. Emergency (High Urgency) reports can still be submitted.' });
         }
       } else if (ban.ban_type === 'shadow') {
-        // Shadow ban: silently divert to quarantine
-        isQuarantined = 1;
+        isQuarantined = 1; // Silent quarantine divert
       }
     }
 
@@ -153,14 +186,24 @@ app.post('/api/reports', async (req, res) => {
     const description = req.body.description || 'No description provided';
 
     await db.execute({
-      sql: 'INSERT INTO reports (category, description, status, student_name, urgency, client_id, ip_address, is_quarantined) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      args: [String(category), String(description), 'Pending', String(student_name), String(urgency), String(clientId), String(clientIp), isQuarantined]
+      sql: `INSERT INTO reports (category, description, status, student_name, urgency, client_id, ip_address, is_quarantined) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        String(category),
+        String(description),
+        'Pending',
+        String(student_name),
+        String(urgency),
+        String(clientId),
+        String(clientIp),
+        isQuarantined
+      ]
     });
 
     res.json({ success: true, message: 'Report submitted successfully' });
   } catch (error) {
-    console.error('Error saving report:', error);
-    res.status(500).json({ error: 'Failed to submit report' });
+    console.error('Error saving report to DB:', error);
+    res.status(500).json({ error: 'Failed to submit report. Please try again.' });
   }
 });
 
@@ -168,17 +211,22 @@ app.post('/api/reports', async (req, res) => {
 app.post('/api/request-reset', async (req, res) => {
   try {
     const { clientId, reason } = req.body;
+    if (!clientId) {
+      return res.status(400).json({ error: 'Missing client ID' });
+    }
+
     await db.execute({
       sql: 'INSERT OR REPLACE INTO reset_requests (client_id, reason) VALUES (?, ?)',
-      args: [clientId, reason || 'User requested device access reset']
+      args: [String(clientId), String(reason || 'User requested device access reset')]
     });
     res.json({ success: true, message: 'Reset request submitted to counselors.' });
   } catch (err) {
+    console.error('Error in /api/request-reset:', err);
     res.status(500).json({ error: 'Failed to send reset request' });
   }
 });
 
-// PROTECTED: Fetch Reports with Device History Counts
+// PROTECTED: Fetch All Reports with Context Counts
 app.get('/api/reports', requireAdmin, async (req, res) => {
   try {
     const reportsResult = await db.execute('SELECT * FROM reports ORDER BY id DESC');
@@ -200,11 +248,12 @@ app.get('/api/reports', requireAdmin, async (req, res) => {
 
     res.json(reports);
   } catch (error) {
+    console.error('Error in GET /api/reports:', error);
     res.status(500).json({ error: 'Failed to fetch reports' });
   }
 });
 
-// PROTECTED: Warn Client
+// PROTECTED: Issue Warning to Client Device
 app.post('/api/reports/:id/warn', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -212,22 +261,23 @@ app.post('/api/reports/:id/warn', requireAdmin, async (req, res) => {
 
     if (report.rows.length > 0 && report.rows[0].client_id) {
       const clientId = report.rows[0].client_id;
-      const warningMsg = req.body.message || 'Warning: Submitting false reports violates school policy.';
+      const warningMsg = req.body.message || 'Warning: Submitting false reports violates portal guidelines.';
 
       await db.execute({
         sql: 'INSERT OR REPLACE INTO warnings (client_id, warning_message) VALUES (?, ?)',
         args: [clientId, warningMsg]
       });
 
-      return res.json({ success: true, message: 'Warning sent.' });
+      return res.json({ success: true, message: 'Warning issued.' });
     }
     res.status(404).json({ error: 'Report not found' });
   } catch (err) {
+    console.error('Error in /api/reports/:id/warn:', err);
     res.status(500).json({ error: 'Failed to send warning' });
   }
 });
 
-// PROTECTED: Apply Cooldown (24h) or Shadow Ban
+// PROTECTED: Apply 24h Cooldown or Shadow Ban
 app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -236,7 +286,7 @@ app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
 
     if (report.rows.length > 0 && report.rows[0].client_id) {
       const clientId = report.rows[0].client_id;
-      const ip = report.rows[0].ip_address;
+      const ip = report.rows[0].ip_address || '';
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
       await db.execute({
@@ -244,41 +294,43 @@ app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
         args: [clientId, ip, banType || 'shadow', banType === '24h' ? expiresAt : null]
       });
 
-      // If shadow ban or cooldown applied, remove the offending report
       await db.execute({ sql: 'DELETE FROM reports WHERE id = ?', args: [id] });
       return res.json({ success: true, message: `${banType === '24h' ? '24-Hour Cooldown' : 'Shadow Ban'} applied.` });
     }
 
     res.status(404).json({ error: 'Report not found' });
   } catch (err) {
+    console.error('Error in /api/reports/:id/ban:', err);
     res.status(500).json({ error: 'Failed to restrict device' });
   }
 });
 
-// PROTECTED: Fetch Banned Clients & Reset Requests
+// PROTECTED: Fetch Banned Devices & Reset Requests
 app.get('/api/banned-clients', requireAdmin, async (req, res) => {
   try {
     const bans = await db.execute('SELECT * FROM banned_clients ORDER BY timestamp DESC');
     const resets = await db.execute('SELECT * FROM reset_requests ORDER BY timestamp DESC');
     res.json({ bans: bans.rows, reset_requests: resets.rows });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch bans' });
+    console.error('Error in /api/banned-clients:', err);
+    res.status(500).json({ error: 'Failed to fetch banned records' });
   }
 });
 
-// PROTECTED: Unban Client & Clear Reset Request
+// PROTECTED: Unban Device & Restore Reports
 app.post('/api/unban', requireAdmin, async (req, res) => {
   try {
     const { clientId } = req.body;
+    if (!clientId) return res.status(400).json({ error: 'Missing client ID' });
+
     await db.execute({ sql: 'DELETE FROM banned_clients WHERE client_id = ?', args: [clientId] });
     await db.execute({ sql: 'DELETE FROM warnings WHERE client_id = ?', args: [clientId] });
     await db.execute({ sql: 'DELETE FROM reset_requests WHERE client_id = ?', args: [clientId] });
-    
-    // Un-quarantine previous reports from this device
     await db.execute({ sql: 'UPDATE reports SET is_quarantined = 0 WHERE client_id = ?', args: [clientId] });
 
-    res.json({ success: true, message: 'Device unbanned and restored' });
+    res.json({ success: true, message: 'Device unbanned and reports restored' });
   } catch (err) {
+    console.error('Error in /api/unban:', err);
     res.status(500).json({ error: 'Failed to unban device' });
   }
 });
@@ -292,6 +344,7 @@ app.patch('/api/reports/:id', requireAdmin, async (req, res) => {
     });
     res.json({ success: true });
   } catch (error) {
+    console.error('Error updating report status:', error);
     res.status(500).json({ error: 'Failed to update status' });
   }
 });
@@ -302,6 +355,7 @@ app.delete('/api/reports/:id', requireAdmin, async (req, res) => {
     await db.execute({ sql: 'DELETE FROM reports WHERE id = ?', args: [req.params.id] });
     res.json({ success: true });
   } catch (error) {
+    console.error('Error deleting report:', error);
     res.status(500).json({ error: 'Failed to delete report' });
   }
 });
