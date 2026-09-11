@@ -7,7 +7,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Set Counselor PIN (Default is '1234')
-const ADMIN_PIN = process.env.ADMIN_PIN || '3267';
+const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
 
 // Initialize Turso Client
 const db = createClient({
@@ -98,6 +98,23 @@ app.patch('/api/reports/:id', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error updating status:', error);
     res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// PROTECTED: DELETE a report (Requires PIN)
+app.delete('/api/reports/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await db.execute({
+      sql: 'DELETE FROM reports WHERE id = ?',
+      args: [id]
+    });
+
+    res.json({ success: true, message: 'Report deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting report:', error);
+    res.status(500).json({ error: 'Failed to delete report' });
   }
 });
 
