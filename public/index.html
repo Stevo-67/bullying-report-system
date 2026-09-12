@@ -1,147 +1,393 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeSpace - Submit a Report</title>
-    <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .container { background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); width: 100%; max-width: 500px; }
-        h2 { color: #2c3e50; margin-top: 0; margin-bottom: 20px; text-align: center; }
-        .warning-banner { display: none; background: #e67e22; color: white; padding: 12px; border-radius: 6px; font-weight: bold; margin-bottom: 20px; text-align: center; font-size: 14px; }
-        .form-group { margin-bottom: 18px; }
-        label { display: block; margin-bottom: 6px; font-weight: 600; color: #34495e; font-size: 14px; }
-        input[type="text"], select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; transition: border 0.2s; }
-        input[type="text"]:focus, select:focus, textarea:focus { border-color: #3498db; outline: none; }
-        textarea { resize: vertical; min-height: 100px; }
-        button.submit-btn { width: 100%; padding: 12px; background-color: #27ae60; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button.submit-btn:hover { background-color: #219150; }
-        #responseMessage { margin-top: 15px; text-align: center; font-weight: bold; font-size: 14px; }
-        .success { color: #27ae60; }
-        .error { color: #c0392b; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Incident Reporting Portal</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 2rem 1rem;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 2rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Status & Warning Banner */
+    #status-banner {
+      margin-bottom: 1.5rem;
+    }
+
+    .alert-box {
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .alert-box.cooldown {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--danger);
+      color: var(--text);
+    }
+
+    .alert-box.warning {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid var(--warning);
+      color: var(--text);
+    }
+
+    .alert-box.success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--success);
+      color: var(--text);
+    }
+
+    /* Form Styles */
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.375rem;
+      color: var(--text-muted);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    button {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    button.btn-appeal {
+      background: var(--warning);
+      color: #0f172a;
+      margin-top: 0.5rem;
+    }
+
+    button.btn-appeal:hover {
+      background: #d97706;
+    }
+
+    /* Appeal Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+      z-index: 50;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 450px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .modal-actions button.btn-cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .modal-actions button.btn-cancel:hover {
+      background: var(--border);
+    }
+  </style>
 </head>
 <body>
 
-    <div class="container" id="mainContainer">
-        <div id="warningBanner" class="warning-banner"></div>
-        <h2>SafeSpace Anonymous Reporting</h2>
-        
-        <form id="reportForm">
-            <div class="form-group">
-                <label for="studentName">Your Name (Optional)</label>
-                <input type="text" id="studentName" placeholder="Leave blank to stay Anonymous">
-            </div>
+  <div class="container">
+    <h1>Report an Incident</h1>
+    <p class="subtitle">Submit a confidential safety or policy concern directly to school counselors.</p>
 
-            <div class="form-group">
-                <label for="category">Report Category</label>
-                <select id="category" required>
-                    <option value="General">General Issue</option>
-                    <option value="Bullying">Bullying / Harassment</option>
-                    <option value="Academic">Academic Support</option>
-                    <option value="Mental Health">Mental Health / Well-being</option>
-                    <option value="Safety">Safety Concern</option>
-                </select>
-            </div>
+    <!-- Dynamic Status Banner (Cooldowns, Warnings, Appeals) -->
+    <div id="status-banner"></div>
 
-            <div class="form-group">
-                <label for="urgency">Urgency Level</label>
-                <select id="urgency" required>
-                    <option value="Low">Low</option>
-                    <option value="Medium" selected>Medium</option>
-                    <option value="High">High</option>
-                </select>
-            </div>
+    <form id="report-form" onsubmit="submitReport(event)">
+      <div class="form-group">
+        <label for="student_name">Your Name / Admission No. (Optional)</label>
+        <input type="text" id="student_name" placeholder="Leave blank to remain anonymous">
+      </div>
 
-            <div class="form-group">
-                <label for="description">Description</label>
-                <textarea id="description" placeholder="Please describe what happened..." required></textarea>
-            </div>
+      <div class="form-group">
+        <label for="category">Incident Category</label>
+        <select id="category" required>
+          <option value="Bullying & Harassment">Bullying & Harassment</option>
+          <option value="Academic Dishonesty">Academic Dishonesty</option>
+          <option value="Property Damage">Property Damage</option>
+          <option value="Safety & Health">Safety & Health Concerns</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
 
-            <button type="submit" class="submit-btn" id="submitBtn">Submit Report</button>
-            <div id="responseMessage"></div>
-        </form>
+      <div class="form-group">
+        <label for="urgency">Urgency Level</label>
+        <select id="urgency" required>
+          <option value="Low">Low (General Inquiry)</option>
+          <option value="Medium" selected>Medium (Standard Incident)</option>
+          <option value="High">High (Immediate Safety Concern / Emergency)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Detailed Description</label>
+        <textarea id="description" placeholder="Provide details about what happened, location, and individuals involved..." required></textarea>
+      </div>
+
+      <button type="submit" id="submit-btn">Submit Report</button>
+    </form>
+  </div>
+
+  <!-- Appeal Modal -->
+  <div id="appeal-modal" class="modal-overlay">
+    <div class="modal">
+      <h2>Submit Ban Appeal</h2>
+      <p style="color: var(--text-muted); font-size: 0.875rem; margin: 0.5rem 0 1rem 0;">
+        Explain why your device restriction or cooldown should be reviewed and lifted by school admins.
+      </p>
+      <div class="form-group">
+        <label for="appeal-reason">Reason for Appeal</label>
+        <textarea id="appeal-reason" placeholder="Explain your situation here..." required></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeAppealModal()">Cancel</button>
+        <button type="button" onclick="sendAppeal()">Submit Appeal</button>
+      </div>
     </div>
+  </div>
 
-<script>
+  <script>
+    // Get or persistent Client ID for the device
     function getClientId() {
-        let clientId = localStorage.getItem('safespace_client_id');
-        if (!clientId) {
-            clientId = 'dev_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
-            localStorage.setItem('safespace_client_id', clientId);
-        }
-        return clientId;
+      let clientId = localStorage.getItem('report_client_id');
+      if (!clientId) {
+        clientId = 'dev_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+        localStorage.setItem('report_client_id', clientId);
+      }
+      return clientId;
     }
 
+    // Check device restriction status on page load
     async function checkDeviceStatus() {
-        const clientId = getClientId();
-        try {
-            const res = await fetch(`/api/client-status/${clientId}`);
-            const data = await res.json();
+      const clientId = getClientId();
+      const banner = document.getElementById('status-banner');
+      const submitBtn = document.getElementById('submit-btn');
 
-            if (data.status === 'banned') {
-                document.getElementById('mainContainer').innerHTML = `
-                    <div style="text-align:center; padding: 20px;">
-                        <h2 style="color: #c0392b; margin-bottom: 10px;">Access Suspended</h2>
-                        <p style="color: #555; line-height: 1.5;">This device has been suspended from submitting reports due to policy violations.</p>
-                    </div>
-                `;
-            } else if (data.status === 'warned') {
-                const banner = document.getElementById('warningBanner');
-                banner.innerText = `⚠️ Counselor Warning: ${data.message}`;
-                banner.style.display = 'block';
-            }
-        } catch (e) {
-            console.error('Status check error:', e);
+      try {
+        const res = await fetch(`/api/client-status/${clientId}`);
+        const data = await res.json();
+
+        if (data.status === 'cooldown') {
+          const cooldownDate = new Date(data.expires_at).toLocaleString();
+          banner.innerHTML = `
+            <div class="alert-box cooldown">
+              <strong>⚠️ Device Restricted</strong>
+              <span>This device is under a 24-hour reporting cooldown until ${cooldownDate}. Standard reports are blocked, but High Urgency (Emergency) reports remain enabled.</span>
+              <button type="button" class="btn-appeal" onclick="openAppealModal()">Request Appeal / Unban</button>
+            </div>
+          `;
+        } else if (data.status === 'warned') {
+          banner.innerHTML = `
+            <div class="alert-box warning">
+              <strong>⚠️ Counselor Warning Issued</strong>
+              <span>"${escapeHtml(data.message)}"</span>
+            </div>
+          `;
+        } else {
+          banner.innerHTML = '';
         }
+      } catch (err) {
+        console.error('Error fetching client status:', err);
+      }
     }
 
-    document.getElementById('reportForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const submitBtn = document.getElementById('submitBtn');
-        const msgDiv = document.getElementById('responseMessage');
-        submitBtn.disabled = true;
-        submitBtn.innerText = 'Submitting...';
-        msgDiv.className = '';
-        msgDiv.innerText = '';
+    // Submit Report Handler
+    async function submitReport(e) {
+      e.preventDefault();
+      const clientId = getClientId();
+      const submitBtn = document.getElementById('submit-btn');
 
-        const payload = {
-            client_id: getClientId(),
-            student_name: document.getElementById('studentName').value.trim() || 'Anonymous',
-            category: document.getElementById('category').value,
-            urgency: document.getElementById('urgency').value,
-            description: document.getElementById('description').value.trim()
-        };
+      const payload = {
+        client_id: clientId,
+        student_name: document.getElementById('student_name').value.trim() || 'Anonymous',
+        category: document.getElementById('category').value,
+        urgency: document.getElementById('urgency').value,
+        description: document.getElementById('description').value.trim()
+      };
 
-        try {
-            const res = await fetch('/api/reports', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Submitting...';
 
-            const data = await res.json();
+      try {
+        const res = await fetch('/api/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-            if (res.ok) {
-                msgDiv.className = 'success';
-                msgDiv.innerText = 'Report submitted successfully. Thank you.';
-                document.getElementById('reportForm').reset();
-            } else {
-                msgDiv.className = 'error';
-                msgDiv.innerText = data.error || 'Failed to submit report.';
-            }
-        } catch (err) {
-            msgDiv.className = 'error';
-            msgDiv.innerText = 'Connection error. Please try again.';
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerText = 'Submit Report';
+        const data = await res.json();
+
+        if (res.ok) {
+          alert('Report submitted successfully.');
+          document.getElementById('report-form').reset();
+          checkDeviceStatus();
+        } else {
+          alert(data.error || 'Submission failed.');
         }
-    });
+      } catch (err) {
+        alert('Network error. Unable to submit report.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Submit Report';
+      }
+    }
 
-    checkDeviceStatus();
-</script>
+    // Modal Control & Appeal Submission
+    function openAppealModal() {
+      document.getElementById('appeal-modal').classList.add('active');
+    }
+
+    function closeAppealModal() {
+      document.getElementById('appeal-modal').classList.remove('active');
+    }
+
+    async function sendAppeal() {
+      const clientId = getClientId();
+      const reason = document.getElementById('appeal-reason').value.trim();
+
+      if (!reason) {
+        alert('Please write a reason for your appeal.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/request-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientId, reason })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert('Your appeal has been submitted to school administrators.');
+          closeAppealModal();
+          document.getElementById('status-banner').innerHTML = `
+            <div class="alert-box success">
+              <strong>✅ Appeal Submitted</strong>
+              <span>Your appeal is pending review by school counselors.</span>
+            </div>
+          `;
+        } else {
+          alert(data.error || 'Failed to submit appeal.');
+        }
+      } catch (err) {
+        alert('Error connecting to the server.');
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    document.addEventListener('DOMContentLoaded', checkDeviceStatus);
+  </script>
 </body>
 </html>
