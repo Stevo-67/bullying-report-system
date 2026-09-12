@@ -246,7 +246,7 @@
           <div id="connection-indicator" class="indicator"></div>
           <span id="connection-text">Connecting...</span>
         </div>
-        <button onclick="changePin()">Change PIN</button>
+        <button onclick="promptAdminPin()">Enter PIN</button>
       </div>
     </header>
 
@@ -270,7 +270,7 @@
             </tr>
           </thead>
           <tbody id="reports-table-body">
-            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading incidents...</td></tr>
+            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Awaiting PIN verification...</td></tr>
           </tbody>
         </table>
       </div>
@@ -290,7 +290,7 @@
             </tr>
           </thead>
           <tbody id="appeals-table-body">
-            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading banned records...</td></tr>
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Awaiting PIN verification...</td></tr>
           </tbody>
         </table>
       </div>
@@ -299,7 +299,8 @@
   </div>
 
   <script>
-    let adminPin = localStorage.getItem('adminPin') || '';
+    // PIN stored strictly in volatile memory (erased on refresh/navigation)
+    let adminPin = '';
 
     // ==========================================
     // WEB AUDIO API BUFFER SYSTEM FOR CUSTOM MP3
@@ -403,7 +404,7 @@
             });
           }
 
-          fetchReports();
+          if (adminPin) fetchReports();
         } catch (err) {
           console.error('Error handling event:', err);
         }
@@ -436,24 +437,20 @@
     }
 
     function promptAdminPin() {
-      const input = prompt('Enter Admin PIN:');
+      const input = prompt('Enter Admin PIN to access dashboard:');
       if (input) {
         adminPin = input;
-        localStorage.setItem('adminPin', adminPin);
         fetchReports();
+      } else {
+        alert('Admin PIN required to view data.');
       }
-    }
-
-    function changePin() {
-      localStorage.removeItem('adminPin');
-      adminPin = '';
-      promptAdminPin();
     }
 
     // ==========================================
     // RENDER REPORTS TABLE
     // ==========================================
     async function fetchReports() {
+      if (!adminPin) return;
       try {
         const reports = await adminFetch('/api/reports');
         renderReportsTable(reports);
@@ -503,6 +500,7 @@
     // RENDER BANS & APPEALS TABLE
     // ==========================================
     async function fetchBannedClients() {
+      if (!adminPin) return;
       try {
         const data = await adminFetch('/api/banned-clients');
         renderAppealsTable(data.bans, data.reset_requests);
@@ -587,12 +585,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       initNotificationPermissions();
       startNotificationStream();
-
-      if (!adminPin) {
-        promptAdminPin();
-      } else {
-        fetchReports();
-      }
+      promptAdminPin();
     });
   </script>
 </body>
