@@ -17,231 +17,44 @@
       --success: #10b981;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 2rem; min-height: 100vh; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    h1 { font-size: 1.5rem; font-weight: 700; }
 
-    body {
-      background-color: var(--bg);
-      color: var(--text);
-      padding: 2rem;
-      min-height: 100vh;
-    }
+    .nav-tabs { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+    .nav-tab { background: var(--card); border: 1px solid var(--border); color: var(--text-muted); padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-weight: 600; }
+    .nav-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
+    .status-badge { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--text-muted); background: var(--card); padding: 0.5rem 1rem; border-radius: 9999px; border: 1px solid var(--border); }
+    .indicator { width: 8px; height: 8px; border-radius: 50%; background-color: var(--danger); }
+    .indicator.connected { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
 
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid var(--border);
-    }
+    button { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-weight: 500; }
+    button:hover { background: var(--border); }
+    button.btn-success { background: rgba(16, 185, 129, 0.1); color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
+    button.btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: rgba(239, 68, 68, 0.3); }
+    button.btn-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); border-color: rgba(245, 158, 11, 0.3); }
 
-    h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
-
-    .nav-tabs {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .nav-tab {
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      padding: 0.5rem 1rem;
-      border-radius: 0.375rem;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    .nav-tab.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      background: var(--card);
-      padding: 0.5rem 1rem;
-      border-radius: 9999px;
-      border: 1px solid var(--border);
-    }
-
-    .indicator {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background-color: var(--danger);
-    }
-
-    .indicator.connected {
-      background-color: var(--success);
-      box-shadow: 0 0 8px var(--success);
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 0.75rem;
-    }
-
-    button {
-      background: var(--card);
-      color: var(--text);
-      border: 1px solid var(--border);
-      padding: 0.5rem 1rem;
-      border-radius: 0.375rem;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-
-    button:hover {
-      background: var(--border);
-    }
-
-    button.btn-success {
-      background: rgba(16, 185, 129, 0.1);
-      color: var(--success);
-      border-color: rgba(16, 185, 129, 0.3);
-    }
-
-    button.btn-success:hover {
-      background: var(--success);
-      color: white;
-    }
-
-    button.btn-danger {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--danger);
-      border-color: rgba(239, 68, 68, 0.3);
-    }
-
-    button.btn-danger:hover {
-      background: var(--danger);
-      color: white;
-    }
-
-    button.btn-warning {
-      background: rgba(245, 158, 11, 0.1);
-      color: var(--warning);
-      border-color: rgba(245, 158, 11, 0.3);
-    }
-
-    button.btn-warning:hover {
-      background: var(--warning);
-      color: white;
-    }
-
-    .table-container {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    th, td {
-      padding: 1rem;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.875rem;
-    }
-
-    th {
-      background-color: rgba(0, 0, 0, 0.2);
-      color: var(--text-muted);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    tr.quarantined-row {
-      background-color: rgba(245, 158, 11, 0.05);
-    }
-
-    .badge {
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.25rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      display: inline-block;
-    }
-
-    .badge.shadow {
-      background: rgba(245, 158, 11, 0.2);
-      color: var(--warning);
-    }
-
-    .badge.cooldown {
-      background: rgba(239, 68, 68, 0.2);
-      color: var(--danger);
-    }
-
-    .urgency-high { color: var(--danger); font-weight: 700; }
-    .urgency-medium { color: var(--warning); font-weight: 600; }
-    .urgency-low { color: var(--primary); }
-
-    select {
-      background: var(--bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      padding: 0.375rem 0.5rem;
-      border-radius: 0.25rem;
-      outline: none;
-    }
-
-    .action-group {
-      display: flex;
-      gap: 0.375rem;
-    }
-
-    .action-group button {
-      padding: 0.25rem 0.5rem;
-      font-size: 0.75rem;
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
+    .table-container { background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+    th { background-color: rgba(0, 0, 0, 0.2); color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; }
+    
+    select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 0.375rem 0.5rem; border-radius: 0.25rem; }
+    .action-group { display: flex; gap: 0.375rem; }
+    .action-group button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
   </style>
 </head>
 <body>
 
   <div class="container">
     <header>
-      <div>
-        <h1>Incident Reports Dashboard</h1>
-      </div>
-      <div class="header-actions">
+      <h1>Incident Reports Dashboard</h1>
+      <div style="display: flex; gap: 0.75rem;">
         <div class="status-badge">
           <div id="connection-indicator" class="indicator"></div>
           <span id="connection-text">Connecting...</span>
@@ -252,7 +65,7 @@
 
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="switchTab('reports-tab', this)">Active Reports</button>
-      <button class="nav-tab" onclick="switchTab('appeals-tab', this)">Banned Devices & Appeals</button>
+      <button class="nav-tab" onclick="switchTab('appeals-tab', this)">Banned Accounts & Appeals</button>
     </div>
 
     <!-- TAB 1: REPORTS -->
@@ -262,35 +75,35 @@
           <thead>
             <tr>
               <th>ID</th>
-              <th>Category / Student</th>
-              <th>Description</th>
+              <th>Student ID</th>
+              <th>Category / Details</th>
               <th>Urgency</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="reports-table-body">
-            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Awaiting PIN verification...</td></tr>
+            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Awaiting PIN authentication...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- TAB 2: BANNED DEVICES & APPEALS -->
+    <!-- TAB 2: BANS & APPEALS -->
     <div id="appeals-tab" class="tab-content">
       <div class="table-container">
         <table>
           <thead>
             <tr>
-              <th>Client ID / IP</th>
-              <th>Restriction Type</th>
+              <th>Student Admission No</th>
+              <th>Restriction</th>
               <th>Appeal Reason</th>
-              <th>Date Banned</th>
+              <th>Date</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="appeals-table-body">
-            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Awaiting PIN verification...</td></tr>
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Awaiting PIN authentication...</td></tr>
           </tbody>
         </table>
       </div>
@@ -299,53 +112,36 @@
   </div>
 
   <script>
-    // PIN stored strictly in volatile memory (erased on refresh/navigation)
+    // Volatile memory PIN storage (erased on refresh)
     let adminPin = '';
 
-    // ==========================================
-    // WEB AUDIO API BUFFER SYSTEM FOR CUSTOM MP3
-    // ==========================================
+    // Web Audio API custom notification playback
     let audioCtx;
     let soundBuffer = null;
 
     function initAudio() {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) return;
-
       audioCtx = new AudioContextClass();
 
       fetch('/notification.mp3')
-        .then(response => {
-          if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-          return response.arrayBuffer();
-        })
-        .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
-        .then(decodedBuffer => {
-          soundBuffer = decodedBuffer;
-          console.log('Notification MP3 buffer loaded.');
-        })
-        .catch(err => console.error('Audio load error:', err));
+        .then(res => res.arrayBuffer())
+        .then(buf => audioCtx.decodeAudioData(buf))
+        .then(decoded => { soundBuffer = decoded; })
+        .catch(err => console.error('Sound buffer load error:', err));
     }
 
     function unlockAudioContext() {
       if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume().then(() => console.log('AudioContext resumed.'));
+        audioCtx.resume();
       }
     }
-
     document.addEventListener('click', unlockAudioContext, { once: true });
     document.addEventListener('keydown', unlockAudioContext, { once: true });
 
     function playCustomSound() {
-      if (!audioCtx || !soundBuffer) {
-        console.warn('Audio buffer not ready or file missing.');
-        return;
-      }
-
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-
+      if (!audioCtx || !soundBuffer) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       const source = audioCtx.createBufferSource();
       source.buffer = soundBuffer;
       source.connect(audioCtx.destination);
@@ -354,13 +150,10 @@
 
     initAudio();
 
-    // ==========================================
-    // TAB NAVIGATION
-    // ==========================================
+    // Navigation Tabs
     function switchTab(tabId, btn) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-      
       document.getElementById(tabId).classList.add('active');
       btn.classList.add('active');
 
@@ -368,19 +161,10 @@
       else fetchReports();
     }
 
-    // ==========================================
-    // SSE LIVE STREAM & NOTIFICATIONS
-    // ==========================================
-    function initNotificationPermissions() {
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-    }
-
+    // Live Stream SSE
     function startNotificationStream() {
       const indicator = document.getElementById('connection-indicator');
       const text = document.getElementById('connection-text');
-
       const eventSource = new EventSource('/api/events');
 
       eventSource.onopen = () => {
@@ -391,22 +175,18 @@
       eventSource.onmessage = (event) => {
         try {
           const report = JSON.parse(event.data);
-
-          // Play Web Audio Buffer
           playCustomSound();
 
-          // Desktop Notification
           if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(`🚨 New ${report.urgency} Urgency Incident`, {
-              body: `Category: ${report.category}\nStudent: ${report.student_name}\n"${report.description}"`,
-              icon: '/favicon.ico',
-              requireInteraction: String(report.urgency).toLowerCase() === 'high'
+            new Notification(`🚨 New Incident Report`, {
+              body: `Student: ${report.student_name}\nCategory: ${report.category}`,
+              icon: '/favicon.ico'
             });
           }
 
           if (adminPin) fetchReports();
         } catch (err) {
-          console.error('Error handling event:', err);
+          console.error('SSE parsing error:', err);
         }
       };
 
@@ -418,9 +198,7 @@
       };
     }
 
-    // ==========================================
-    // ADMIN AUTHENTICATION & API CALLS
-    // ==========================================
+    // Authenticated Fetch Helper
     async function adminFetch(url, options = {}) {
       options.headers = {
         ...options.headers,
@@ -437,18 +215,14 @@
     }
 
     function promptAdminPin() {
-      const input = prompt('Enter Admin PIN to access dashboard:');
+      const input = prompt('Enter Admin PIN:');
       if (input) {
         adminPin = input;
         fetchReports();
-      } else {
-        alert('Admin PIN required to view data.');
       }
     }
 
-    // ==========================================
-    // RENDER REPORTS TABLE
-    // ==========================================
+    // Reports Table Render
     async function fetchReports() {
       if (!adminPin) return;
       try {
@@ -462,21 +236,19 @@
     function renderReportsTable(reports) {
       const tbody = document.getElementById('reports-table-body');
       if (!reports || reports.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No incident reports found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No reports found.</td></tr>';
         return;
       }
 
       tbody.innerHTML = reports.map(r => `
-        <tr class="${r.is_quarantined ? 'quarantined-row' : ''}">
+        <tr>
           <td>#${r.id}</td>
+          <td><strong>${escapeHtml(r.admission_number)}</strong></td>
           <td>
             <strong>${escapeHtml(r.category)}</strong><br>
-            <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(r.student_name)}</span>
-            ${r.is_quarantined ? '<br><span class="badge shadow">Shadow Banned</span>' : ''}
-            ${r.has_reset_request ? '<br><span class="badge cooldown">Submitted Appeal</span>' : ''}
+            <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(r.description)}</span>
           </td>
-          <td>${escapeHtml(r.description)}</td>
-          <td><span class="urgency-${String(r.urgency).toLowerCase()}">${escapeHtml(r.urgency)}</span></td>
+          <td>${escapeHtml(r.urgency)}</td>
           <td>
             <select onchange="updateStatus(${r.id}, this.value)">
               <option value="Pending" ${r.status === 'Pending' ? 'selected' : ''}>Pending</option>
@@ -486,9 +258,8 @@
           </td>
           <td>
             <div class="action-group">
-              <button class="btn-warning" onclick="issueWarning(${r.id})">Warn</button>
-              <button class="btn-danger" onclick="applyBan(${r.id}, '24h')">24h Ban</button>
-              <button class="btn-danger" onclick="applyBan(${r.id}, 'shadow')">Shadow Ban</button>
+              <button class="btn-warning" onclick="resetStudentPin('${escapeHtml(r.admission_number)}')">Reset PIN</button>
+              <button class="btn-danger" onclick="applyBan(${r.id})">Ban Account</button>
               <button onclick="deleteReport(${r.id})">Delete</button>
             </div>
           </td>
@@ -496,23 +267,21 @@
       `).join('');
     }
 
-    // ==========================================
-    // RENDER BANS & APPEALS TABLE
-    // ==========================================
+    // Bans & Appeals Table Render
     async function fetchBannedClients() {
       if (!adminPin) return;
       try {
         const data = await adminFetch('/api/banned-clients');
         renderAppealsTable(data.bans, data.reset_requests);
       } catch (err) {
-        console.error('Error fetching banned records:', err);
+        console.error('Error fetching bans:', err);
       }
     }
 
     function renderAppealsTable(bans, resetRequests) {
       const tbody = document.getElementById('appeals-table-body');
       if (!bans || bans.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No active bans or restrictions.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No banned student accounts.</td></tr>';
         return;
       }
 
@@ -521,29 +290,37 @@
 
       tbody.innerHTML = bans.map(b => `
         <tr>
-          <td>
-            <strong>${escapeHtml(b.client_id)}</strong><br>
-            <span style="color: var(--text-muted); font-size: 0.75rem;">IP: ${escapeHtml(b.ip || 'Unknown')}</span>
-          </td>
-          <td>
-            <span class="badge ${b.ban_type === '24h' ? 'cooldown' : 'shadow'}">
-              ${b.ban_type === '24h' ? '24h Cooldown' : 'Shadow Ban'}
-            </span>
-          </td>
+          <td><strong>${escapeHtml(b.client_id)}</strong></td>
+          <td><span style="color: var(--danger); font-weight:600;">Account Banned</span></td>
           <td>${escapeHtml(requestMap[b.client_id] || 'No appeal submitted yet.')}</td>
           <td>${new Date(b.timestamp).toLocaleString()}</td>
           <td>
-            <button class="btn-success" onclick="unbanDevice('${escapeHtml(b.client_id)}')">Undo Ban / Unban</button>
+            <button class="btn-success" onclick="unbanStudent('${escapeHtml(b.client_id)}')">Unban Account</button>
           </td>
         </tr>
       `).join('');
     }
 
-    // ==========================================
-    // ACTIONS
-    // ==========================================
-    async function unbanDevice(clientId) {
-      if (confirm(`Unban device ${clientId} and restore access?`)) {
+    // Counselor Actions
+    async function resetStudentPin(admissionNumber) {
+      if (confirm(`Reset PIN for ${admissionNumber}? They will create a new PIN on next login.`)) {
+        await adminFetch('/api/admin/reset-pin', {
+          method: 'POST',
+          body: JSON.stringify({ admission_number: admissionNumber })
+        });
+        alert(`PIN for ${admissionNumber} has been reset.`);
+      }
+    }
+
+    async function applyBan(id) {
+      if (confirm('Ban this student account across all devices?')) {
+        await adminFetch(`/api/reports/${id}/ban`, { method: 'POST' });
+        fetchReports();
+      }
+    }
+
+    async function unbanStudent(clientId) {
+      if (confirm(`Unban student account ${clientId}?`)) {
         await adminFetch('/api/unban', {
           method: 'POST',
           body: JSON.stringify({ clientId })
@@ -556,23 +333,8 @@
       await adminFetch(`/api/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
     }
 
-    async function issueWarning(id) {
-      const message = prompt('Warning message:', 'Warning: Submitting false reports violates school policy.');
-      if (message) {
-        await adminFetch(`/api/reports/${id}/warn`, { method: 'POST', body: JSON.stringify({ message }) });
-        alert('Warning issued.');
-      }
-    }
-
-    async function applyBan(id, banType) {
-      if (confirm(`Apply ${banType === '24h' ? '24-Hour Cooldown' : 'Shadow Ban'} to this device?`)) {
-        await adminFetch(`/api/reports/${id}/ban`, { method: 'POST', body: JSON.stringify({ banType }) });
-        fetchReports();
-      }
-    }
-
     async function deleteReport(id) {
-      if (confirm('Delete this report entry permanently?')) {
+      if (confirm('Delete report entry?')) {
         await adminFetch(`/api/reports/${id}`, { method: 'DELETE' });
         fetchReports();
       }
@@ -583,7 +345,9 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      initNotificationPermissions();
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
       startNotificationStream();
       promptAdminPin();
     });

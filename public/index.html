@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Incident Reporting Portal</title>
+  <title>Student Reporting Portal</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -17,202 +17,59 @@
       --success: #10b981;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 2rem 1rem; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+    .container { width: 100%; max-width: 600px; background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p.subtitle { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem; }
+    
+    #status-banner { margin-bottom: 1.5rem; }
+    .alert-box { padding: 1rem; border-radius: 0.5rem; font-size: 0.875rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .alert-box.cooldown { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); }
+    .alert-box.warning { background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); }
+    .alert-box.success { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--success); }
 
-    body {
-      background-color: var(--bg);
-      color: var(--text);
-      padding: 2rem 1rem;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
+    .form-group { margin-bottom: 1.25rem; }
+    label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.375rem; color: var(--text-muted); }
+    input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.75rem; border-radius: 0.375rem; font-size: 0.875rem; outline: none; }
+    textarea { resize: vertical; min-height: 100px; }
+    button { width: 100%; background: var(--primary); color: white; border: none; padding: 0.75rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+    button.btn-appeal { background: var(--warning); color: #0f172a; margin-top: 0.5rem; }
 
-    .container {
-      width: 100%;
-      max-width: 600px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 0.75rem;
-      padding: 2rem;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-    }
-
-    h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    p.subtitle {
-      color: var(--text-muted);
-      font-size: 0.875rem;
-      margin-bottom: 1.5rem;
-    }
-
-    /* Status & Warning Banner */
-    #status-banner {
-      margin-bottom: 1.5rem;
-    }
-
-    .alert-box {
-      padding: 1rem;
-      border-radius: 0.5rem;
-      font-size: 0.875rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .alert-box.cooldown {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid var(--danger);
-      color: var(--text);
-    }
-
-    .alert-box.warning {
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid var(--warning);
-      color: var(--text);
-    }
-
-    .alert-box.success {
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid var(--success);
-      color: var(--text);
-    }
-
-    /* Form Styles */
-    .form-group {
-      margin-bottom: 1.25rem;
-    }
-
-    label {
-      display: block;
-      font-size: 0.875rem;
-      font-weight: 600;
-      margin-bottom: 0.375rem;
-      color: var(--text-muted);
-    }
-
-    input, select, textarea {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 0.75rem;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input:focus, select:focus, textarea:focus {
-      border-color: var(--primary);
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 100px;
-    }
-
-    button {
-      width: 100%;
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 0.75rem;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    button:hover {
-      background: #2563eb;
-    }
-
-    button.btn-appeal {
-      background: var(--warning);
-      color: #0f172a;
-      margin-top: 0.5rem;
-    }
-
-    button.btn-appeal:hover {
-      background: #d97706;
-    }
-
-    /* Appeal Modal */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.75);
-      justify-content: center;
-      align-items: center;
-      padding: 1rem;
-      z-index: 50;
-    }
-
-    .modal-overlay.active {
-      display: flex;
-    }
-
-    .modal {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
-      padding: 1.5rem;
-      width: 100%;
-      max-width: 450px;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-
-    .modal-actions button.btn-cancel {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-    }
-
-    .modal-actions button.btn-cancel:hover {
-      background: var(--border);
-    }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; padding: 1rem; z-index: 50; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1.5rem; width: 100%; max-width: 450px; }
+    .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .modal-actions button.btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
   </style>
 </head>
 <body>
 
   <div class="container">
     <h1>Report an Incident</h1>
-    <p class="subtitle">Submit a confidential safety or policy concern directly to school counselors.</p>
+    <p class="subtitle">Submit a confidential report. First-time users will establish a private PIN.</p>
 
-    <!-- Dynamic Status Banner (Cooldowns, Warnings, Appeals) -->
     <div id="status-banner"></div>
 
-    <form id="report-form" onsubmit="submitReport(event)">
+    <form id="report-form" onsubmit="handleFormSubmit(event)">
       <div class="form-group">
-        <label for="student_name">Your Name / Admission No. (Optional)</label>
-        <input type="text" id="student_name" placeholder="Leave blank to remain anonymous">
+        <label for="adm_no">Admission Number / Student ID</label>
+        <input type="text" id="adm_no" placeholder="e.g., ADM-102" onchange="checkAccountStatus()" required>
       </div>
 
       <div class="form-group">
-        <label for="category">Incident Category</label>
+        <label for="student_pin">Private PIN (4–6 digits)</label>
+        <small style="color: var(--text-muted); display: block; margin-bottom: 0.25rem;">If first time, this PIN will become your account password.</small>
+        <input type="password" id="student_pin" maxlength="6" placeholder="Enter or set your PIN" required>
+      </div>
+
+      <div class="form-group">
+        <label for="category">Category</label>
         <select id="category" required>
           <option value="Bullying & Harassment">Bullying & Harassment</option>
           <option value="Academic Dishonesty">Academic Dishonesty</option>
           <option value="Property Damage">Property Damage</option>
-          <option value="Safety & Health">Safety & Health Concerns</option>
+          <option value="Safety Concerns">Safety Concerns</option>
           <option value="Other">Other</option>
         </select>
       </div>
@@ -220,15 +77,15 @@
       <div class="form-group">
         <label for="urgency">Urgency Level</label>
         <select id="urgency" required>
-          <option value="Low">Low (General Inquiry)</option>
-          <option value="Medium" selected>Medium (Standard Incident)</option>
-          <option value="High">High (Immediate Safety Concern / Emergency)</option>
+          <option value="Low">Low</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="High">High (Immediate Safety)</option>
         </select>
       </div>
 
       <div class="form-group">
         <label for="description">Detailed Description</label>
-        <textarea id="description" placeholder="Provide details about what happened, location, and individuals involved..." required></textarea>
+        <textarea id="description" placeholder="Provide full details..." required></textarea>
       </div>
 
       <button type="submit" id="submit-btn">Submit Report</button>
@@ -239,12 +96,10 @@
   <div id="appeal-modal" class="modal-overlay">
     <div class="modal">
       <h2>Submit Ban Appeal</h2>
-      <p style="color: var(--text-muted); font-size: 0.875rem; margin: 0.5rem 0 1rem 0;">
-        Explain why your device restriction or cooldown should be reviewed and lifted by school admins.
-      </p>
+      <p style="color: var(--text-muted); font-size: 0.875rem; margin: 0.5rem 0 1rem 0;">Explain why your account restriction should be reviewed by school counselors.</p>
       <div class="form-group">
         <label for="appeal-reason">Reason for Appeal</label>
-        <textarea id="appeal-reason" placeholder="Explain your situation here..." required></textarea>
+        <textarea id="appeal-reason" placeholder="Type reason..." required></textarea>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-cancel" onclick="closeAppealModal()">Cancel</button>
@@ -254,33 +109,21 @@
   </div>
 
   <script>
-    // Get or persistent Client ID for the device
-    function getClientId() {
-      let clientId = localStorage.getItem('report_client_id');
-      if (!clientId) {
-        clientId = 'dev_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
-        localStorage.setItem('report_client_id', clientId);
-      }
-      return clientId;
-    }
+    async function checkAccountStatus() {
+      const admNo = document.getElementById('adm_no').value.trim();
+      if (!admNo) return;
 
-    // Check device restriction status on page load
-    async function checkDeviceStatus() {
-      const clientId = getClientId();
       const banner = document.getElementById('status-banner');
-      const submitBtn = document.getElementById('submit-btn');
-
       try {
-        const res = await fetch(`/api/client-status/${clientId}`);
+        const res = await fetch(`/api/client-status/${encodeURIComponent(admNo)}`);
         const data = await res.json();
 
         if (data.status === 'cooldown') {
-          const cooldownDate = new Date(data.expires_at).toLocaleString();
           banner.innerHTML = `
             <div class="alert-box cooldown">
-              <strong>⚠️ Device Restricted</strong>
-              <span>This device is under a 24-hour reporting cooldown until ${cooldownDate}. Standard reports are blocked, but High Urgency (Emergency) reports remain enabled.</span>
-              <button type="button" class="btn-appeal" onclick="openAppealModal()">Request Appeal / Unban</button>
+              <strong>⚠️ Account Restricted</strong>
+              <span>This student account is banned across all devices.</span>
+              <button type="button" class="btn-appeal" onclick="openAppealModal()">Submit Ban Appeal</button>
             </div>
           `;
         } else if (data.status === 'warned') {
@@ -294,100 +137,84 @@
           banner.innerHTML = '';
         }
       } catch (err) {
-        console.error('Error fetching client status:', err);
+        console.error('Status check failed:', err);
       }
     }
 
-    // Submit Report Handler
-    async function submitReport(e) {
+    async function handleFormSubmit(e) {
       e.preventDefault();
-      const clientId = getClientId();
+      const admNo = document.getElementById('adm_no').value.trim();
+      const pin = document.getElementById('student_pin').value.trim();
+      const category = document.getElementById('category').value;
+      const urgency = document.getElementById('urgency').value;
+      const description = document.getElementById('description').value.trim();
       const submitBtn = document.getElementById('submit-btn');
 
-      const payload = {
-        client_id: clientId,
-        student_name: document.getElementById('student_name').value.trim() || 'Anonymous',
-        category: document.getElementById('category').value,
-        urgency: document.getElementById('urgency').value,
-        description: document.getElementById('description').value.trim()
-      };
-
       submitBtn.disabled = true;
-      submitBtn.innerText = 'Submitting...';
 
-      try {
-        const res = await fetch('/api/reports', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+      // 1. Authenticate or Set PIN
+      const authRes = await fetch('/api/student/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admission_number: admNo, pin })
+      });
 
-        const data = await res.json();
+      const authData = await authRes.json();
 
-        if (res.ok) {
-          alert('Report submitted successfully.');
-          document.getElementById('report-form').reset();
-          checkDeviceStatus();
-        } else {
-          alert(data.error || 'Submission failed.');
-        }
-      } catch (err) {
-        alert('Network error. Unable to submit report.');
-      } finally {
+      if (!authRes.ok) {
+        alert(authData.error || 'Authentication failed.');
         submitBtn.disabled = false;
-        submitBtn.innerText = 'Submit Report';
-      }
-    }
-
-    // Modal Control & Appeal Submission
-    function openAppealModal() {
-      document.getElementById('appeal-modal').classList.add('active');
-    }
-
-    function closeAppealModal() {
-      document.getElementById('appeal-modal').classList.remove('active');
-    }
-
-    async function sendAppeal() {
-      const clientId = getClientId();
-      const reason = document.getElementById('appeal-reason').value.trim();
-
-      if (!reason) {
-        alert('Please write a reason for your appeal.');
         return;
       }
 
-      try {
-        const res = await fetch('/api/request-reset', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clientId, reason })
-        });
+      // 2. Submit Report
+      const reportRes = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admission_number: admNo, category, urgency, description })
+      });
 
-        const data = await res.json();
+      if (reportRes.ok) {
+        alert('Report submitted successfully.');
+        document.getElementById('report-form').reset();
+        document.getElementById('status-banner').innerHTML = '';
+      } else {
+        const errData = await reportRes.json();
+        alert(errData.error || 'Failed to submit report.');
+      }
 
-        if (res.ok) {
-          alert('Your appeal has been submitted to school administrators.');
-          closeAppealModal();
-          document.getElementById('status-banner').innerHTML = `
-            <div class="alert-box success">
-              <strong>✅ Appeal Submitted</strong>
-              <span>Your appeal is pending review by school counselors.</span>
-            </div>
-          `;
-        } else {
-          alert(data.error || 'Failed to submit appeal.');
-        }
-      } catch (err) {
-        alert('Error connecting to the server.');
+      submitBtn.disabled = false;
+    }
+
+    function openAppealModal() { document.getElementById('appeal-modal').classList.add('active'); }
+    function closeAppealModal() { document.getElementById('appeal-modal').classList.remove('active'); }
+
+    async function sendAppeal() {
+      const admNo = document.getElementById('adm_no').value.trim();
+      const reason = document.getElementById('appeal-reason').value.trim();
+
+      if (!admNo || !reason) {
+        alert('Admission number and appeal reason are required.');
+        return;
+      }
+
+      const res = await fetch('/api/request-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: admNo, reason })
+      });
+
+      if (res.ok) {
+        alert('Appeal submitted to school administrators.');
+        closeAppealModal();
+      } else {
+        alert('Failed to send appeal.');
       }
     }
 
     function escapeHtml(str) {
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
-
-    document.addEventListener('DOMContentLoaded', checkDeviceStatus);
   </script>
 </body>
 </html>
