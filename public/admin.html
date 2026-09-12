@@ -301,32 +301,61 @@
   <script>
     let adminPin = localStorage.getItem('adminPin') || '';
 
-    // Custom Audio File Setup
-    const alertAudio = new Audio('/notification.mp3');
-    alertAudio.preload = 'auto';
+    // ==========================================
+    // WEB AUDIO API BUFFER SYSTEM FOR CUSTOM MP3
+    // ==========================================
+    let audioCtx;
+    let soundBuffer = null;
 
-    // Browser Autoplay Unlock Handling
-    let isAudioUnlocked = false;
-    function unlockAudio() {
-      if (isAudioUnlocked) return;
-      alertAudio.play().then(() => {
-        alertAudio.pause();
-        alertAudio.currentTime = 0;
-        isAudioUnlocked = true;
-      }).catch(() => {});
+    function initAudio() {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      audioCtx = new AudioContextClass();
+
+      fetch('/notification.mp3')
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+          return response.arrayBuffer();
+        })
+        .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
+        .then(decodedBuffer => {
+          soundBuffer = decodedBuffer;
+          console.log('Notification MP3 buffer loaded.');
+        })
+        .catch(err => console.error('Audio load error:', err));
     }
 
-    document.addEventListener('click', unlockAudio, { once: true });
-    document.addEventListener('keydown', unlockAudio, { once: true });
+    function unlockAudioContext() {
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => console.log('AudioContext resumed.'));
+      }
+    }
+
+    document.addEventListener('click', unlockAudioContext, { once: true });
+    document.addEventListener('keydown', unlockAudioContext, { once: true });
 
     function playCustomSound() {
-      alertAudio.currentTime = 0;
-      alertAudio.play().catch(err => {
-        console.warn('Audio playback blocked by browser:', err);
-      });
+      if (!audioCtx || !soundBuffer) {
+        console.warn('Audio buffer not ready or file missing.');
+        return;
+      }
+
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const source = audioCtx.createBufferSource();
+      source.buffer = soundBuffer;
+      source.connect(audioCtx.destination);
+      source.start(0);
     }
 
-    // Tab Navigation
+    initAudio();
+
+    // ==========================================
+    // TAB NAVIGATION
+    // ==========================================
     function switchTab(tabId, btn) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -338,7 +367,9 @@
       else fetchReports();
     }
 
-    // Notifications & SSE Live Stream
+    // ==========================================
+    // SSE LIVE STREAM & NOTIFICATIONS
+    // ==========================================
     function initNotificationPermissions() {
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
@@ -360,10 +391,10 @@
         try {
           const report = JSON.parse(event.data);
 
-          // Play custom sound file
+          // Play Web Audio Buffer
           playCustomSound();
 
-          // Show desktop notification
+          // Desktop Notification
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(`🚨 New ${report.urgency} Urgency Incident`, {
               body: `Category: ${report.category}\nStudent: ${report.student_name}\n"${report.description}"`,
@@ -386,7 +417,9 @@
       };
     }
 
-    // Admin Authentication & API Calls
+    // ==========================================
+    // ADMIN AUTHENTICATION & API CALLS
+    // ==========================================
     async function adminFetch(url, options = {}) {
       options.headers = {
         ...options.headers,
@@ -417,7 +450,9 @@
       promptAdminPin();
     }
 
-    // Render Active Reports Tab
+    // ==========================================
+    // RENDER REPORTS TABLE
+    // ==========================================
     async function fetchReports() {
       try {
         const reports = await adminFetch('/api/reports');
@@ -464,7 +499,9 @@
       `).join('');
     }
 
-    // Render Banned Devices & Appeals Tab
+    // ==========================================
+    // RENDER BANS & APPEALS TABLE
+    // ==========================================
     async function fetchBannedClients() {
       try {
         const data = await adminFetch('/api/banned-clients');
@@ -504,7 +541,9 @@
       `).join('');
     }
 
-    // Incident Actions
+    // ==========================================
+    // ACTIONS
+    // ==========================================
     async function unbanDevice(clientId) {
       if (confirm(`Unban device ${clientId} and restore access?`)) {
         await adminFetch('/api/unban', {
