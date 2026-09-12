@@ -17,7 +17,6 @@ const db = createClient({
 // SSE Live Notification Connections
 let sseClients = [];
 
-// Send keep-alive ping every 20s to prevent Render timeouts
 setInterval(() => {
   sseClients.forEach(client => client.write(': ping\n\n'));
 }, 20000);
@@ -28,7 +27,7 @@ function notifyAdmins(reportData) {
   });
 }
 
-// Database Initialization & Schema Auto-Migration
+// Database Initialization
 async function initDB() {
   try {
     // 1. Reports Table
@@ -87,7 +86,7 @@ async function initDB() {
       try { await db.execute(`ALTER TABLE banned_clients ADD COLUMN ${colSpec}`); } catch (e) {}
     }
 
-    // 4. Reset Requests Table
+    // 4. Ban Appeals / Reset Requests Table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS reset_requests (
         client_id TEXT PRIMARY KEY,
@@ -116,7 +115,7 @@ function requireAdmin(req, res, next) {
   }
 }
 
-// SSE Live Stream Endpoint for Browser Notifications
+// SSE Live Event Stream
 app.get('/api/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -167,7 +166,7 @@ app.get('/api/client-status/:clientId', async (req, res) => {
   }
 });
 
-// PUBLIC: Submit Report (Dispatches SSE Live Alert)
+// PUBLIC: Submit Report
 app.post('/api/reports', async (req, res) => {
   try {
     const clientIp = getClientIp(req);
@@ -214,7 +213,6 @@ app.post('/api/reports', async (req, res) => {
       ]
     });
 
-    // Send real-time event to open Admin dashboards
     notifyAdmins({
       category,
       student_name,
@@ -231,7 +229,7 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
-// PUBLIC: Request Access Reset
+// PUBLIC: Submit Ban Appeal / Access Reset Request
 app.post('/api/request-reset', async (req, res) => {
   try {
     const { clientId, reason } = req.body;
@@ -239,16 +237,16 @@ app.post('/api/request-reset', async (req, res) => {
 
     await db.execute({
       sql: 'INSERT OR REPLACE INTO reset_requests (client_id, reason) VALUES (?, ?)',
-      args: [String(clientId), String(reason || 'User requested device access reset')]
+      args: [String(clientId), String(reason || 'User requested ban appeal')]
     });
-    res.json({ success: true, message: 'Reset request submitted.' });
+    res.json({ success: true, message: 'Appeal submitted to counselors.' });
   } catch (err) {
     console.error('Error in /api/request-reset:', err);
-    res.status(500).json({ error: 'Failed to send reset request' });
+    res.status(500).json({ error: 'Failed to send appeal request' });
   }
 });
 
-// PROTECTED: Fetch All Reports
+// PROTECTED: Fetch Reports
 app.get('/api/reports', requireAdmin, async (req, res) => {
   try {
     const reportsResult = await db.execute('SELECT * FROM reports ORDER BY id DESC');
@@ -299,7 +297,7 @@ app.post('/api/reports/:id/warn', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Restrict Device
+// PROTECTED: Apply Ban
 app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -327,7 +325,7 @@ app.post('/api/reports/:id/ban', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Fetch Banned Devices
+// PROTECTED: Fetch Banned Devices & Pending Appeals
 app.get('/api/banned-clients', requireAdmin, async (req, res) => {
   try {
     const bans = await db.execute('SELECT * FROM banned_clients ORDER BY timestamp DESC');
@@ -339,7 +337,7 @@ app.get('/api/banned-clients', requireAdmin, async (req, res) => {
   }
 });
 
-// PROTECTED: Unban Device
+// PROTECTED: Undo Ban / Accept Appeal
 app.post('/api/unban', requireAdmin, async (req, res) => {
   try {
     const { clientId } = req.body;
@@ -350,7 +348,7 @@ app.post('/api/unban', requireAdmin, async (req, res) => {
     await db.execute({ sql: 'DELETE FROM reset_requests WHERE client_id = ?', args: [clientId] });
     await db.execute({ sql: 'UPDATE reports SET is_quarantined = 0 WHERE client_id = ?', args: [clientId] });
 
-    res.json({ success: true, message: 'Device unbanned.' });
+    res.json({ success: true, message: 'Device unbanned and reports restored.' });
   } catch (err) {
     console.error('Error in /api/unban:', err);
     res.status(500).json({ error: 'Failed to unban device' });

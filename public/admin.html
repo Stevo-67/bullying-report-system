@@ -40,7 +40,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
       padding-bottom: 1rem;
       border-bottom: 1px solid var(--border);
     }
@@ -48,6 +48,28 @@
     h1 {
       font-size: 1.5rem;
       font-weight: 700;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .nav-tab {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .nav-tab.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
     }
 
     .status-badge {
@@ -92,6 +114,17 @@
 
     button:hover {
       background: var(--border);
+    }
+
+    button.btn-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    button.btn-success:hover {
+      background: var(--success);
+      color: white;
     }
 
     button.btn-danger {
@@ -164,19 +197,14 @@
       color: var(--warning);
     }
 
-    .urgency-high {
+    .badge.cooldown {
+      background: rgba(239, 68, 68, 0.2);
       color: var(--danger);
-      font-weight: 700;
     }
 
-    .urgency-medium {
-      color: var(--warning);
-      font-weight: 600;
-    }
-
-    .urgency-low {
-      color: var(--primary);
-    }
+    .urgency-high { color: var(--danger); font-weight: 700; }
+    .urgency-medium { color: var(--warning); font-weight: 600; }
+    .urgency-low { color: var(--primary); }
 
     select {
       background: var(--bg);
@@ -196,6 +224,14 @@
       padding: 0.25rem 0.5rem;
       font-size: 0.75rem;
     }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -214,46 +250,77 @@
       </div>
     </header>
 
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Category / Student</th>
-            <th>Description</th>
-            <th>Urgency</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="reports-table-body">
-          <tr>
-            <td colspan="6" style="text-align: center; color: var(--text-muted);">Loading incidents...</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchTab('reports-tab', this)">Active Reports</button>
+      <button class="nav-tab" onclick="switchTab('appeals-tab', this)">Banned Devices & Appeals</button>
     </div>
+
+    <!-- TAB 1: REPORTS -->
+    <div id="reports-tab" class="tab-content active">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Category / Student</th>
+              <th>Description</th>
+              <th>Urgency</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reports-table-body">
+            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading incidents...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: BANNED DEVICES & APPEALS -->
+    <div id="appeals-tab" class="tab-content">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Client ID / IP</th>
+              <th>Restriction Type</th>
+              <th>Appeal Reason</th>
+              <th>Date Banned</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="appeals-table-body">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading banned records...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
   <script>
     let adminPin = localStorage.getItem('adminPin') || '';
-    
-    // Uses your local audio asset inside public/ (change path/filename if different)
     const alertAudio = new Audio('/notification.mp3');
 
-    // Unlock audio context on initial page click
-    document.addEventListener('click', () => {
-      alertAudio.load();
-    }, { once: true });
+    document.addEventListener('click', () => { alertAudio.load(); }, { once: true });
 
-    // Request browser notification permissions
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
+
+      if (tabId === 'appeals-tab') fetchBannedClients();
+      else fetchReports();
+    }
+
     function initNotificationPermissions() {
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
       }
     }
 
-    // Connect to SSE Live Stream for Instant Notifications
     function startNotificationStream() {
       const indicator = document.getElementById('connection-indicator');
       const text = document.getElementById('connection-text');
@@ -268,11 +335,8 @@
       eventSource.onmessage = (event) => {
         try {
           const report = JSON.parse(event.data);
-
-          // 1. Play chime
           alertAudio.play().catch(() => {});
 
-          // 2. Show system desktop notification
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(`🚨 New ${report.urgency} Urgency Incident`, {
               body: `Category: ${report.category}\nStudent: ${report.student_name}\n"${report.description}"`,
@@ -281,7 +345,6 @@
             });
           }
 
-          // 3. Refresh reports list on dashboard automatically
           fetchReports();
         } catch (err) {
           console.error('Error handling event:', err);
@@ -296,7 +359,6 @@
       };
     }
 
-    // Helper for API calls requiring PIN
     async function adminFetch(url, options = {}) {
       options.headers = {
         ...options.headers,
@@ -327,19 +389,17 @@
       promptAdminPin();
     }
 
-    // Fetch and render reports list
     async function fetchReports() {
       try {
         const reports = await adminFetch('/api/reports');
-        renderTable(reports);
+        renderReportsTable(reports);
       } catch (err) {
         console.error('Error fetching reports:', err);
       }
     }
 
-    function renderTable(reports) {
+    function renderReportsTable(reports) {
       const tbody = document.getElementById('reports-table-body');
-
       if (!reports || reports.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No incident reports found.</td></tr>';
         return;
@@ -352,6 +412,7 @@
             <strong>${escapeHtml(r.category)}</strong><br>
             <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(r.student_name)}</span>
             ${r.is_quarantined ? '<br><span class="badge shadow">Shadow Banned</span>' : ''}
+            ${r.has_reset_request ? '<br><span class="badge cooldown">Submitted Appeal</span>' : ''}
           </td>
           <td>${escapeHtml(r.description)}</td>
           <td><span class="urgency-${String(r.urgency).toLowerCase()}">${escapeHtml(r.urgency)}</span></td>
@@ -374,30 +435,70 @@
       `).join('');
     }
 
+    async function fetchBannedClients() {
+      try {
+        const data = await adminFetch('/api/banned-clients');
+        renderAppealsTable(data.bans, data.reset_requests);
+      } catch (err) {
+        console.error('Error fetching banned records:', err);
+      }
+    }
+
+    function renderAppealsTable(bans, resetRequests) {
+      const tbody = document.getElementById('appeals-table-body');
+      if (!bans || bans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No active bans or restrictions.</td></tr>';
+        return;
+      }
+
+      const requestMap = {};
+      (resetRequests || []).forEach(req => { requestMap[req.client_id] = req.reason; });
+
+      tbody.innerHTML = bans.map(b => `
+        <tr>
+          <td>
+            <strong>${escapeHtml(b.client_id)}</strong><br>
+            <span style="color: var(--text-muted); font-size: 0.75rem;">IP: ${escapeHtml(b.ip || 'Unknown')}</span>
+          </td>
+          <td>
+            <span class="badge ${b.ban_type === '24h' ? 'cooldown' : 'shadow'}">
+              ${b.ban_type === '24h' ? '24h Cooldown' : 'Shadow Ban'}
+            </span>
+          </td>
+          <td>${escapeHtml(requestMap[b.client_id] || 'No appeal submitted yet.')}</td>
+          <td>${new Date(b.timestamp).toLocaleString()}</td>
+          <td>
+            <button class="btn-success" onclick="unbanDevice('${escapeHtml(b.client_id)}')">Undo Ban / Unban</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function unbanDevice(clientId) {
+      if (confirm(`Unban device ${clientId} and restore access?`)) {
+        await adminFetch('/api/unban', {
+          method: 'POST',
+          body: JSON.stringify({ clientId })
+        });
+        fetchBannedClients();
+      }
+    }
+
     async function updateStatus(id, status) {
-      await adminFetch(`/api/reports/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status })
-      });
+      await adminFetch(`/api/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
     }
 
     async function issueWarning(id) {
-      const message = prompt('Warning message to deliver to this student device:', 'Warning: Submitting false or improper reports violates school policy.');
+      const message = prompt('Warning message:', 'Warning: Submitting false reports violates school policy.');
       if (message) {
-        await adminFetch(`/api/reports/${id}/warn`, {
-          method: 'POST',
-          body: JSON.stringify({ message })
-        });
+        await adminFetch(`/api/reports/${id}/warn`, { method: 'POST', body: JSON.stringify({ message }) });
         alert('Warning issued.');
       }
     }
 
     async function applyBan(id, banType) {
       if (confirm(`Apply ${banType === '24h' ? '24-Hour Cooldown' : 'Shadow Ban'} to this device?`)) {
-        await adminFetch(`/api/reports/${id}/ban`, {
-          method: 'POST',
-          body: JSON.stringify({ banType })
-        });
+        await adminFetch(`/api/reports/${id}/ban`, { method: 'POST', body: JSON.stringify({ banType }) });
         fetchReports();
       }
     }
@@ -413,7 +514,6 @@
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // Initialize Page
     document.addEventListener('DOMContentLoaded', () => {
       initNotificationPermissions();
       startNotificationStream();
