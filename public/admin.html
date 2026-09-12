@@ -42,6 +42,10 @@
     th, td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
     th { background-color: rgba(0, 0, 0, 0.2); color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; }
     
+    .urgency-high { color: var(--danger); font-weight: 700; }
+    .urgency-medium { color: var(--warning); font-weight: 600; }
+    .urgency-low { color: var(--primary); }
+
     select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 0.375rem 0.5rem; border-radius: 0.25rem; }
     .action-group { display: flex; gap: 0.375rem; }
     .action-group button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
@@ -78,12 +82,13 @@
               <th>Student ID</th>
               <th>Category / Details</th>
               <th>Urgency</th>
+              <th>Submitted At</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="reports-table-body">
-            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Awaiting PIN authentication...</td></tr>
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Awaiting PIN authentication...</td></tr>
           </tbody>
         </table>
       </div>
@@ -236,35 +241,42 @@
     function renderReportsTable(reports) {
       const tbody = document.getElementById('reports-table-body');
       if (!reports || reports.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No reports found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No reports found.</td></tr>';
         return;
       }
 
-      tbody.innerHTML = reports.map(r => `
-        <tr>
-          <td>#${r.id}</td>
-          <td><strong>${escapeHtml(r.admission_number)}</strong></td>
-          <td>
-            <strong>${escapeHtml(r.category)}</strong><br>
-            <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(r.description)}</span>
-          </td>
-          <td>${escapeHtml(r.urgency)}</td>
-          <td>
-            <select onchange="updateStatus(${r.id}, this.value)">
-              <option value="Pending" ${r.status === 'Pending' ? 'selected' : ''}>Pending</option>
-              <option value="In Progress" ${r.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-              <option value="Resolved" ${r.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
-            </select>
-          </td>
-          <td>
-            <div class="action-group">
-              <button class="btn-warning" onclick="resetStudentPin('${escapeHtml(r.admission_number)}')">Reset PIN</button>
-              <button class="btn-danger" onclick="applyBan(${r.id})">Ban Account</button>
-              <button onclick="deleteReport(${r.id})">Delete</button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = reports.map(r => {
+        const formattedTime = r.timestamp 
+          ? new Date(r.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+          : 'Unknown';
+
+        return `
+          <tr>
+            <td>#${r.id}</td>
+            <td><strong>${escapeHtml(r.admission_number)}</strong></td>
+            <td>
+              <strong>${escapeHtml(r.category)}</strong><br>
+              <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(r.description)}</span>
+            </td>
+            <td><span class="urgency-${String(r.urgency).toLowerCase()}">${escapeHtml(r.urgency)}</span></td>
+            <td><span style="color: var(--text-muted); font-size: 0.8rem;">${formattedTime}</span></td>
+            <td>
+              <select onchange="updateStatus(${r.id}, this.value)">
+                <option value="Pending" ${r.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="In Progress" ${r.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                <option value="Resolved" ${r.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+              </select>
+            </td>
+            <td>
+              <div class="action-group">
+                <button class="btn-warning" onclick="resetStudentPin('${escapeHtml(r.admission_number)}')">Reset PIN</button>
+                <button class="btn-danger" onclick="applyBan(${r.id})">Ban Account</button>
+                <button onclick="deleteReport(${r.id})">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
     // Bans & Appeals Table Render
