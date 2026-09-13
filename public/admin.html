@@ -47,7 +47,6 @@
 
     h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
 
-    /* Lively Animated Buttons */
     button {
       position: relative;
       overflow: hidden;
@@ -74,15 +73,9 @@
     }
 
     button.btn-success { background: rgba(16, 185, 129, 0.12); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.3); }
-    button.btn-success:hover:not(:disabled) { box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); }
-
     button.btn-danger { background: rgba(244, 63, 94, 0.12); color: #fca5a5; border-color: rgba(244, 63, 94, 0.3); }
-    button.btn-danger:hover:not(:disabled) { box-shadow: 0 10px 20px -5px rgba(244, 63, 94, 0.4); }
-
     button.btn-warning { background: rgba(245, 158, 11, 0.12); color: #fde68a; border-color: rgba(245, 158, 11, 0.3); }
-    button.btn-warning:hover:not(:disabled) { box-shadow: 0 10px 20px -5px rgba(245, 158, 11, 0.4); }
 
-    /* KPI Stats Grid */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -103,7 +96,9 @@
     .stat-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
     .stat-value { font-size: 2rem; font-weight: 700; margin-top: 0.35rem; }
 
-    .nav-tabs { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; }
+    .nav-tabs { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; justify-content: space-between; align-items: center; }
+    .nav-tab-group { display: flex; gap: 0.75rem; }
+    
     .nav-tab {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -142,7 +137,6 @@
     th, td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--card-border); font-size: 0.875rem; }
     th { background-color: rgba(0, 0, 0, 0.25); color: var(--text-muted); text-transform: uppercase; font-size: 0.725rem; font-weight: 700; letter-spacing: 0.05em; }
 
-    /* Urgency Badges */
     .badge { padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
     .badge-high { background: rgba(244, 63, 94, 0.15); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
     .badge-medium { background: rgba(245, 158, 11, 0.15); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.3); }
@@ -157,7 +151,6 @@
 </head>
 <body>
 
-  <!-- Audio Element for Dashboard Menu Theme -->
   <audio id="menu-music" loop src="/assets/cycle-to-the-stars.mp3"></audio>
 
   <div class="container">
@@ -173,7 +166,6 @@
       </div>
     </header>
 
-    <!-- KPI Dashboard Overview -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">Total Submissions</div>
@@ -190,8 +182,11 @@
     </div>
 
     <div class="nav-tabs">
-      <button class="nav-tab active" onclick="switchTab('reports-tab', this)">Active Incident Reports</button>
-      <button class="nav-tab" onclick="switchTab('appeals-tab', this)">Banned Accounts & Appeals</button>
+      <div class="nav-tab-group">
+        <button class="nav-tab active" onclick="switchTab('reports-tab', this)">Active Incident Reports</button>
+        <button class="nav-tab" onclick="switchTab('appeals-tab', this)">Banned Accounts & Appeals</button>
+      </div>
+      <button class="btn-danger" onclick="clearAllReports()">🗑️ Clear All Reports</button>
     </div>
 
     <!-- TAB 1: REPORTS -->
@@ -248,7 +243,6 @@
     let lowpassFilter;
     let isMusicPlaying = false;
 
-    // Ambient Muffled Dashboard Menu Music Handler
     function toggleMenuMusic() {
       const audio = document.getElementById('menu-music');
       const btn = document.getElementById('music-btn');
@@ -258,7 +252,6 @@
         musicAudioCtx = new AudioContextClass();
         musicSource = musicAudioCtx.createMediaElementSource(audio);
         
-        // Low-Pass Filter: Muffles the high frequencies for background menu ambient sound
         lowpassFilter = musicAudioCtx.createBiquadFilter();
         lowpassFilter.type = 'lowpass';
         lowpassFilter.frequency.value = 800;
@@ -441,7 +434,7 @@
               <div class="action-group">
                 <button class="btn-warning" onclick="resetStudentPin('${escapeHtml(r.admission_number)}')">Reset PIN</button>
                 <button class="btn-danger" onclick="applyBan(${r.id})">Ban Account</button>
-                <button onclick="deleteReport(${r.id})">Delete</button>
+                <button onclick="clearSingleReport(${r.id})">Clear Report</button>
               </div>
             </td>
           </tr>
@@ -514,9 +507,18 @@
       await adminFetch(`/api/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
     }
 
-    async function deleteReport(id) {
-      if (confirm('Delete report entry?')) {
+    // CLEAR SINGLE REPORT
+    async function clearSingleReport(id) {
+      if (confirm(`Clear report #${id} from the database?`)) {
         await adminFetch(`/api/reports/${id}`, { method: 'DELETE' });
+        fetchReports();
+      }
+    }
+
+    // CLEAR ALL REPORTS
+    async function clearAllReports() {
+      if (confirm('⚠️ WARNING: Delete ALL incident reports permanently from the database?')) {
+        await adminFetch('/api/admin/clear-all-reports', { method: 'DELETE' });
         fetchReports();
       }
     }

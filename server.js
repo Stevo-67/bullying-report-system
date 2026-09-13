@@ -9,20 +9,19 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
 
-// Express Middleware
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize Local LibSQL / SQLite Client
+// Local SQLite database storage using @libsql/client
 const db = createClient({
   url: 'file:reports.db'
 });
 
-// SSE Clients Registry
 let sseClients = [];
 
-// Initialize Database Tables
+// Database Schema Setup
 async function initDb() {
   try {
     await db.execute(`
@@ -56,13 +55,13 @@ async function initDb() {
 
     console.log('✅ Local SQLite database (reports.db) initialized.');
   } catch (err) {
-    console.error('❌ Failed to initialize database:', err);
+    console.error('❌ Database initialization error:', err);
   }
 }
 
 initDb();
 
-// Admin Middleware
+// Admin Verification Middleware
 function verifyAdminPin(req, res, next) {
   const pin = req.headers['x-admin-pin'];
   if (pin !== ADMIN_PIN) {
@@ -71,7 +70,7 @@ function verifyAdminPin(req, res, next) {
   next();
 }
 
-// SSE Notification Broadcast
+// Broadcast SSE Event to Admin Dashboards
 function broadcastNewReport(report) {
   sseClients.forEach(client => {
     client.res.write(`data: ${JSON.stringify(report)}\n\n`);
@@ -96,7 +95,7 @@ app.get('/api/events', (req, res) => {
 });
 
 // ----------------------------------------------------
-// STUDENT AUTH & STATUS ROUTING
+// STUDENT AUTH & ROUTING
 // ----------------------------------------------------
 app.get('/api/client-status/:admNo', async (req, res) => {
   const cleanAdm = req.params.admNo.trim().toUpperCase();
@@ -112,19 +111,13 @@ app.get('/api/client-status/:admNo', async (req, res) => {
     }
 
     const student = result.rows[0];
-
-    if (student.status === 'banned') {
-      return res.json({ status: 'cooldown' });
-    }
-
-    if (student.warning) {
-      return res.json({ status: 'warned', message: student.warning });
-    }
+    if (student.status === 'banned') return res.json({ status: 'cooldown' });
+    if (student.warning) return res.json({ status: 'warned', message: student.warning });
 
     res.json({ status: 'clean' });
   } catch (err) {
-    console.error('Error fetching client status:', err);
-    res.status(500).json({ error: 'Database query error' });
+    console.error('Status check error:', err);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
@@ -143,7 +136,6 @@ app.post('/api/student/auth', async (req, res) => {
       args: [cleanAdm]
     });
 
-    // FIRST-TIME USER: Create account & set PIN
     if (result.rows.length === 0) {
       const pin_hash = await bcrypt.hash(pin, 10);
       await db.execute({
@@ -154,13 +146,10 @@ app.post('/api/student/auth', async (req, res) => {
     }
 
     const student = result.rows[0];
-
-    // BANNED ACCOUNT CHECK
     if (student.status === 'banned') {
-      return res.status(403).json({ error: 'This account is currently restricted. Please submit an appeal.' });
+      return res.status(403).json({ error: 'This account is restricted. Please submit an appeal.' });
     }
 
-    // RETURNING USER: Verify PIN
     const isValidPin = await bcrypt.compare(pin, student.pin_hash);
     if (!isValidPin) {
       return res.status(401).json({ error: 'Incorrect PIN for this Admission Number.' });
@@ -190,7 +179,6 @@ app.post('/api/reports', async (req, res) => {
       return res.status(403).json({ error: 'Submission denied. Account is restricted.' });
     }
 
-    // Rate Limit Cooldown Check (10 seconds)
     const recentReport = await db.execute({
       sql: 'SELECT timestamp FROM reports WHERE admission_number = ? ORDER BY id DESC LIMIT 1',
       args: [cleanAdm]
@@ -241,15 +229,15 @@ app.post('/api/request-reset', async (req, res) => {
       args: [cleanAdm, reason]
     });
 
-    res.json({ success: true, message: 'Appeal submitted to counselors.' });
+    res.json({ success: true, message: 'Appeal recorded.' });
   } catch (err) {
-    console.error('Error submitting appeal:', err);
+    console.error('Error recording appeal:', err);
     res.status(500).json({ error: 'Failed to record appeal.' });
   }
 });
 
 // ----------------------------------------------------
-// ADMIN DASHBOARD ENDPOINTS
+// PROTECTED ADMIN ENDPOINTS
 // ----------------------------------------------------
 app.get('/api/reports', verifyAdminPin, async (req, res) => {
   try {
@@ -268,8 +256,8 @@ app.get('/api/banned-clients', verifyAdminPin, async (req, res) => {
 
     res.json({ bans: bannedResult.rows, reset_requests: appealsResult.rows });
   } catch (err) {
-    console.error('Error fetching banned clients:', err);
-    res.status(500).json({ error: 'Failed to fetch banned clients.' });
+    console.error('Error fetching banned accounts:', err);
+    res.status(500).json({ error: 'Failed to fetch banned list.' });
   }
 });
 
@@ -289,29 +277,30 @@ app.patch('/api/reports/:id', verifyAdminPin, async (req, res) => {
   }
 });
 
-app.post('/api/reports/:id/warn', verifyAdminPin, async (req, res) => {
+// CLEAR SINGLE REPORT
+app.delete('/api/reports/:id', verifyAdminPin, async (req, res) => {
   const id = parseInt(req.params.id);
-  const { message } = req.body;
 
   try {
-    const reportResult = await db.execute({
-      sql: 'SELECT admission_number FROM reports WHERE id = ?',
+    await db.execute({
+      sql: 'DELETE FROM reports WHERE id = ?',
       args: [id]
     });
-
-    if (reportResult.rows.length > 0) {
-      const admNo = reportResult.rows[0].admission_number;
-      await db.execute({
-        sql: 'UPDATE students SET warning = ? WHERE admission_number = ?',
-        args: [message, admNo]
-      });
-      return res.json({ success: true });
-    }
-
-    res.status(404).json({ error: 'Report not found' });
+    res.json({ success: true, message: `Report #${id} cleared.` });
   } catch (err) {
-    console.error('Error issuing warning:', err);
-    res.status(500).json({ error: 'Failed to issue warning.' });
+    console.error('Error deleting report:', err);
+    res.status(500).json({ error: 'Failed to delete report.' });
+  }
+});
+
+// CLEAR ALL REPORTS
+app.delete('/api/admin/clear-all-reports', verifyAdminPin, async (req, res) => {
+  try {
+    await db.execute('DELETE FROM reports');
+    res.json({ success: true, message: 'All reports cleared.' });
+  } catch (err) {
+    console.error('Error purging reports:', err);
+    res.status(500).json({ error: 'Failed to clear all reports.' });
   }
 });
 
@@ -327,7 +316,7 @@ app.post('/api/reports/:id/ban', verifyAdminPin, async (req, res) => {
     if (reportResult.rows.length > 0) {
       const admNo = reportResult.rows[0].admission_number;
       await db.execute({
-        sql: 'UPDATE students SET status = \'banned\' WHERE admission_number = ?',
+        sql: "UPDATE students SET status = 'banned' WHERE admission_number = ?",
         args: [admNo]
       });
       return res.json({ success: true });
@@ -335,7 +324,7 @@ app.post('/api/reports/:id/ban', verifyAdminPin, async (req, res) => {
 
     res.status(404).json({ error: 'Report not found' });
   } catch (err) {
-    console.error('Error banning account:', err);
+    console.error('Error banning student:', err);
     res.status(500).json({ error: 'Failed to ban student.' });
   }
 });
@@ -361,7 +350,7 @@ app.post('/api/unban', verifyAdminPin, async (req, res) => {
 
   try {
     await db.execute({
-      sql: 'UPDATE students SET status = \'active\' WHERE admission_number = ?',
+      sql: "UPDATE students SET status = 'active' WHERE admission_number = ?",
       args: [cleanAdm]
     });
 
@@ -374,22 +363,6 @@ app.post('/api/unban', verifyAdminPin, async (req, res) => {
   } catch (err) {
     console.error('Error unbanning student:', err);
     res.status(500).json({ error: 'Failed to unban student.' });
-  }
-});
-
-app.delete('/api/reports/:id', verifyAdminPin, async (req, res) => {
-  const id = parseInt(req.params.id);
-
-  try {
-    await db.execute({
-      sql: 'DELETE FROM reports WHERE id = ?',
-      args: [id]
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Error deleting report:', err);
-    res.status(500).json({ error: 'Failed to delete report.' });
   }
 });
 
