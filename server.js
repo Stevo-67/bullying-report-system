@@ -1,30 +1,39 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 const { createClient } = require('@libsql/client');
-require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
 
-// Middleware
+// Express Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize Turso Database Client
+// Initialize Local LibSQL / SQLite Client
 const db = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN,
+  url: 'file:reports.db'
 });
 
 // SSE Clients Registry
 let sseClients = [];
 
 // Initialize Database Tables
-async function initDatabase() {
+async function initDb() {
   try {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS students (
+        admission_number TEXT PRIMARY KEY,
+        pin_hash TEXT NOT NULL,
+        status TEXT DEFAULT 'active',
+        warning TEXT
+      );
+    `);
+
     await db.execute(`
       CREATE TABLE IF NOT EXISTS reports (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,47 +47,40 @@ async function initDatabase() {
     `);
 
     await db.execute(`
-      CREATE TABLE IF NOT EXISTS banned_clients (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        client_id TEXT UNIQUE NOT NULL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS reset_requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        client_id TEXT UNIQUE NOT NULL,
+      CREATE TABLE IF NOT EXISTS appeals (
+        admission_number TEXT PRIMARY KEY,
         reason TEXT NOT NULL,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    console.log('✅ Turso Database tables verified and initialized.');
+    console.log('✅ Local SQLite database (reports.db) initialized.');
   } catch (err) {
-    console.error('❌ Failed to initialize Turso database:', err);
+    console.error('❌ Failed to initialize database:', err);
   }
 }
 
-initDatabase();
+initDb();
 
-// Admin Authentication Middleware
-function checkAdminPin(req, res, next) {
+// Admin Middleware
+function verifyAdminPin(req, res, next) {
   const pin = req.headers['x-admin-pin'];
   if (pin !== ADMIN_PIN) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid PIN' });
+    return res.status(401).json({ error: 'Unauthorized: Invalid Admin PIN' });
   }
   next();
 }
 
-// Broadcast SSE Event to Admin Dashboards
-function notifyAdminClients(data) {
+// SSE Notification Broadcast
+function broadcastNewReport(report) {
   sseClients.forEach(client => {
-    client.res.write(`data: ${JSON.stringify(data)}\n\n`);
+    client.res.write(`data: ${JSON.stringify(report)}\n\n`);
   });
 }
 
-// --- SSE Real-time Feed ---
+// ----------------------------------------------------
+// SSE REAL-TIME STREAM
+// ----------------------------------------------------
 app.get('/api/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -93,35 +95,123 @@ app.get('/api/events', (req, res) => {
   });
 });
 
-// --- Public / Student Endpoints ---
-
-// Submit a new incident report
-app.post('/api/reports', async (req, res) => {
-  const { admission_number, category, description, urgency } = req.body;
-
-  if (!admission_number || !category || !description || !urgency) {
-    return res.status(400).json({ error: 'All fields are required.' });
-  }
+// ----------------------------------------------------
+// STUDENT AUTH & STATUS ROUTING
+// ----------------------------------------------------
+app.get('/api/client-status/:admNo', async (req, res) => {
+  const cleanAdm = req.params.admNo.trim().toUpperCase();
 
   try {
-    // Check if client is banned
-    const banCheck = await db.execute({
-      sql: 'SELECT * FROM banned_clients WHERE client_id = ?',
-      args: [admission_number]
+    const result = await db.execute({
+      sql: 'SELECT * FROM students WHERE admission_number = ?',
+      args: [cleanAdm]
     });
 
-    if (banCheck.rows.length > 0) {
-      return res.status(403).json({ error: 'This account has been banned.' });
+    if (result.rows.length === 0) {
+      return res.json({ status: 'clean' });
     }
 
+    const student = result.rows[0];
+
+    if (student.status === 'banned') {
+      return res.json({ status: 'cooldown' });
+    }
+
+    if (student.warning) {
+      return res.json({ status: 'warned', message: student.warning });
+    }
+
+    res.json({ status: 'clean' });
+  } catch (err) {
+    console.error('Error fetching client status:', err);
+    res.status(500).json({ error: 'Database query error' });
+  }
+});
+
+app.post('/api/student/auth', async (req, res) => {
+  const { admission_number, pin } = req.body;
+
+  if (!admission_number || !pin) {
+    return res.status(400).json({ error: 'Admission Number and PIN are required.' });
+  }
+
+  const cleanAdm = admission_number.trim().toUpperCase();
+
+  try {
     const result = await db.execute({
+      sql: 'SELECT * FROM students WHERE admission_number = ?',
+      args: [cleanAdm]
+    });
+
+    // FIRST-TIME USER: Create account & set PIN
+    if (result.rows.length === 0) {
+      const pin_hash = await bcrypt.hash(pin, 10);
+      await db.execute({
+        sql: 'INSERT INTO students (admission_number, pin_hash, status) VALUES (?, ?, ?)',
+        args: [cleanAdm, pin_hash, 'active']
+      });
+      return res.json({ success: true, message: 'Account PIN set successfully.' });
+    }
+
+    const student = result.rows[0];
+
+    // BANNED ACCOUNT CHECK
+    if (student.status === 'banned') {
+      return res.status(403).json({ error: 'This account is currently restricted. Please submit an appeal.' });
+    }
+
+    // RETURNING USER: Verify PIN
+    const isValidPin = await bcrypt.compare(pin, student.pin_hash);
+    if (!isValidPin) {
+      return res.status(401).json({ error: 'Incorrect PIN for this Admission Number.' });
+    }
+
+    res.json({ success: true, message: 'Authentication successful.' });
+  } catch (err) {
+    console.error('Auth error:', err);
+    res.status(500).json({ error: 'Authentication failed.' });
+  }
+});
+
+// ----------------------------------------------------
+// REPORT & APPEAL SUBMISSION
+// ----------------------------------------------------
+app.post('/api/reports', async (req, res) => {
+  const { admission_number, category, description, urgency } = req.body;
+  const cleanAdm = (admission_number || '').trim().toUpperCase();
+
+  try {
+    const studentResult = await db.execute({
+      sql: 'SELECT status FROM students WHERE admission_number = ?',
+      args: [cleanAdm]
+    });
+
+    if (studentResult.rows.length > 0 && studentResult.rows[0].status === 'banned') {
+      return res.status(403).json({ error: 'Submission denied. Account is restricted.' });
+    }
+
+    // Rate Limit Cooldown Check (10 seconds)
+    const recentReport = await db.execute({
+      sql: 'SELECT timestamp FROM reports WHERE admission_number = ? ORDER BY id DESC LIMIT 1',
+      args: [cleanAdm]
+    });
+
+    if (recentReport.rows.length > 0) {
+      const lastTime = new Date(recentReport.rows[0].timestamp).getTime();
+      if (Date.now() - lastTime < 10000) {
+        return res.status(429).json({ error: 'Please wait 10 seconds before submitting another report.' });
+      }
+    }
+
+    const insertResult = await db.execute({
       sql: 'INSERT INTO reports (admission_number, category, description, urgency) VALUES (?, ?, ?, ?)',
-      args: [admission_number, category, description, urgency]
+      args: [cleanAdm, category, description, urgency]
     });
 
     const newReport = {
-      id: Number(result.lastInsertRowid),
-      admission_number,
+      id: Number(insertResult.lastInsertRowid),
+      admission_number: cleanAdm,
+      student_name: cleanAdm,
       category,
       description,
       urgency,
@@ -129,47 +219,62 @@ app.post('/api/reports', async (req, res) => {
       timestamp: new Date().toISOString()
     };
 
-    notifyAdminClients(newReport);
-    res.status(201).json({ success: true, report: newReport });
+    broadcastNewReport(newReport);
+    res.json({ success: true, message: 'Report submitted successfully.' });
   } catch (err) {
-    console.error('Error inserting report:', err);
-    res.status(500).json({ error: 'Failed to save incident report.' });
+    console.error('Error submitting report:', err);
+    res.status(500).json({ error: 'Failed to save report.' });
   }
 });
 
-// Submit Ban Appeal / Reset Request
-app.post('/api/appeal', async (req, res) => {
+app.post('/api/request-reset', async (req, res) => {
   const { clientId, reason } = req.body;
-  if (!clientId || !reason) return res.status(400).json({ error: 'Missing parameters.' });
+  const cleanAdm = (clientId || '').trim().toUpperCase();
+
+  if (!reason) {
+    return res.status(400).json({ error: 'Appeal reason is required.' });
+  }
 
   try {
     await db.execute({
-      sql: 'INSERT OR REPLACE INTO reset_requests (client_id, reason) VALUES (?, ?)',
-      args: [clientId, reason]
+      sql: 'INSERT INTO appeals (admission_number, reason) VALUES (?, ?) ON CONFLICT(admission_number) DO UPDATE SET reason = excluded.reason, timestamp = CURRENT_TIMESTAMP',
+      args: [cleanAdm, reason]
     });
-    res.json({ success: true, message: 'Appeal recorded.' });
+
+    res.json({ success: true, message: 'Appeal submitted to counselors.' });
   } catch (err) {
-    console.error('Error recording appeal:', err);
+    console.error('Error submitting appeal:', err);
     res.status(500).json({ error: 'Failed to record appeal.' });
   }
 });
 
-// --- Protected Admin Endpoints ---
-
-// Get all active reports
-app.get('/api/reports', checkAdminPin, async (req, res) => {
+// ----------------------------------------------------
+// ADMIN DASHBOARD ENDPOINTS
+// ----------------------------------------------------
+app.get('/api/reports', verifyAdminPin, async (req, res) => {
   try {
     const result = await db.execute('SELECT * FROM reports ORDER BY timestamp DESC');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching reports:', err);
-    res.status(500).json({ error: 'Failed to retrieve reports.' });
+    res.status(500).json({ error: 'Failed to fetch reports.' });
   }
 });
 
-// Update report status
-app.patch('/api/reports/:id', checkAdminPin, async (req, res) => {
-  const { id } = req.params;
+app.get('/api/banned-clients', verifyAdminPin, async (req, res) => {
+  try {
+    const bannedResult = await db.execute("SELECT admission_number AS client_id, 'Account Ban' AS ban_type, CURRENT_TIMESTAMP AS timestamp FROM students WHERE status = 'banned'");
+    const appealsResult = await db.execute('SELECT admission_number AS client_id, reason FROM appeals');
+
+    res.json({ bans: bannedResult.rows, reset_requests: appealsResult.rows });
+  } catch (err) {
+    console.error('Error fetching banned clients:', err);
+    res.status(500).json({ error: 'Failed to fetch banned clients.' });
+  }
+});
+
+app.patch('/api/reports/:id', verifyAdminPin, async (req, res) => {
+  const id = parseInt(req.params.id);
   const { status } = req.body;
 
   try {
@@ -184,25 +289,9 @@ app.patch('/api/reports/:id', checkAdminPin, async (req, res) => {
   }
 });
 
-// Delete a report
-app.delete('/api/reports/:id', checkAdminPin, async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    await db.execute({
-      sql: 'DELETE FROM reports WHERE id = ?',
-      args: [id]
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Error deleting report:', err);
-    res.status(500).json({ error: 'Failed to delete report.' });
-  }
-});
-
-// Ban account tied to a report
-app.post('/api/reports/:id/ban', checkAdminPin, async (req, res) => {
-  const { id } = req.params;
+app.post('/api/reports/:id/warn', verifyAdminPin, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { message } = req.body;
 
   try {
     const reportResult = await db.execute({
@@ -210,75 +299,97 @@ app.post('/api/reports/:id/ban', checkAdminPin, async (req, res) => {
       args: [id]
     });
 
-    if (reportResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Report not found.' });
+    if (reportResult.rows.length > 0) {
+      const admNo = reportResult.rows[0].admission_number;
+      await db.execute({
+        sql: 'UPDATE students SET warning = ? WHERE admission_number = ?',
+        args: [message, admNo]
+      });
+      return res.json({ success: true });
     }
 
-    const clientId = reportResult.rows[0].admission_number;
+    res.status(404).json({ error: 'Report not found' });
+  } catch (err) {
+    console.error('Error issuing warning:', err);
+    res.status(500).json({ error: 'Failed to issue warning.' });
+  }
+});
 
-    await db.execute({
-      sql: 'INSERT OR IGNORE INTO banned_clients (client_id) VALUES (?)',
-      args: [clientId]
+app.post('/api/reports/:id/ban', verifyAdminPin, async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  try {
+    const reportResult = await db.execute({
+      sql: 'SELECT admission_number FROM reports WHERE id = ?',
+      args: [id]
     });
 
-    res.json({ success: true, message: `Banned student ${clientId}` });
+    if (reportResult.rows.length > 0) {
+      const admNo = reportResult.rows[0].admission_number;
+      await db.execute({
+        sql: 'UPDATE students SET status = \'banned\' WHERE admission_number = ?',
+        args: [admNo]
+      });
+      return res.json({ success: true });
+    }
+
+    res.status(404).json({ error: 'Report not found' });
   } catch (err) {
-    console.error('Error banning client:', err);
+    console.error('Error banning account:', err);
     res.status(500).json({ error: 'Failed to ban student.' });
   }
 });
 
-// Get banned accounts and reset appeals
-app.get('/api/banned-clients', checkAdminPin, async (req, res) => {
-  try {
-    const bansResult = await db.execute('SELECT * FROM banned_clients ORDER BY timestamp DESC');
-    const appealsResult = await db.execute('SELECT * FROM reset_requests ORDER BY timestamp DESC');
+app.post('/api/admin/reset-pin', verifyAdminPin, async (req, res) => {
+  const cleanAdm = (req.body.admission_number || '').trim().toUpperCase();
 
-    res.json({
-      bans: bansResult.rows,
-      reset_requests: appealsResult.rows
+  try {
+    await db.execute({
+      sql: 'DELETE FROM students WHERE admission_number = ?',
+      args: [cleanAdm]
     });
+
+    res.json({ success: true, message: `PIN reset for ${cleanAdm}.` });
   } catch (err) {
-    console.error('Error fetching banned clients:', err);
-    res.status(500).json({ error: 'Failed to retrieve banned accounts list.' });
+    console.error('Error resetting PIN:', err);
+    res.status(500).json({ error: 'Failed to reset PIN.' });
   }
 });
 
-// Unban a student account
-app.post('/api/unban', checkAdminPin, async (req, res) => {
-  const { clientId } = req.body;
+app.post('/api/unban', verifyAdminPin, async (req, res) => {
+  const cleanAdm = (req.body.clientId || '').trim().toUpperCase();
 
   try {
     await db.execute({
-      sql: 'DELETE FROM banned_clients WHERE client_id = ?',
-      args: [clientId]
-    });
-    await db.execute({
-      sql: 'DELETE FROM reset_requests WHERE client_id = ?',
-      args: [clientId]
+      sql: 'UPDATE students SET status = \'active\' WHERE admission_number = ?',
+      args: [cleanAdm]
     });
 
-    res.json({ success: true });
+    await db.execute({
+      sql: 'DELETE FROM appeals WHERE admission_number = ?',
+      args: [cleanAdm]
+    });
+
+    res.json({ success: true, message: `Account ${cleanAdm} unbanned.` });
   } catch (err) {
-    console.error('Error unbanning client:', err);
+    console.error('Error unbanning student:', err);
     res.status(500).json({ error: 'Failed to unban student.' });
   }
 });
 
-// Reset PIN for a student
-app.post('/api/admin/reset-pin', checkAdminPin, async (req, res) => {
-  const { admission_number } = req.body;
+app.delete('/api/reports/:id', verifyAdminPin, async (req, res) => {
+  const id = parseInt(req.params.id);
 
   try {
     await db.execute({
-      sql: 'DELETE FROM reset_requests WHERE client_id = ?',
-      args: [admission_number]
+      sql: 'DELETE FROM reports WHERE id = ?',
+      args: [id]
     });
 
-    res.json({ success: true, message: `PIN reset flag issued for ${admission_number}` });
+    res.json({ success: true });
   } catch (err) {
-    console.error('Error resetting PIN:', err);
-    res.status(500).json({ error: 'Failed to execute PIN reset.' });
+    console.error('Error deleting report:', err);
+    res.status(500).json({ error: 'Failed to delete report.' });
   }
 });
 
