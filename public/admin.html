@@ -3,52 +3,137 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Incident Portal</title>
+  <title>Admin Incident Management Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0f172a;
-      --card: #1e293b;
-      --border: #334155;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --primary: #3b82f6;
-      --danger: #ef4444;
+      --bg-dark: #090d16;
+      --card-bg: rgba(22, 30, 46, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-blue: #3b82f6;
+      --accent-blue-glow: rgba(59, 130, 246, 0.3);
+      --text-main: #f1f5f9;
+      --text-muted: #64748b;
+      --danger: #f43f5e;
       --warning: #f59e0b;
       --success: #10b981;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding: 2rem; min-height: 100vh; }
-    .container { max-width: 1200px; margin: 0 auto; }
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
-    h1 { font-size: 1.5rem; font-weight: 700; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+    
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      padding: 2rem;
+      min-height: 100vh;
+    }
 
-    .nav-tabs { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
-    .nav-tab { background: var(--card); border: 1px solid var(--border); color: var(--text-muted); padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-weight: 600; }
-    .nav-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .container { max-width: 1240px; margin: 0 auto; }
+    
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--card-border);
+    }
 
-    .status-badge { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--text-muted); background: var(--card); padding: 0.5rem 1rem; border-radius: 9999px; border: 1px solid var(--border); }
+    h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+
+    /* KPI Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { font-size: 2rem; font-weight: 700; margin-top: 0.35rem; }
+
+    .nav-tabs { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; }
+    .nav-tab {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+    .nav-tab.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); box-shadow: 0 4px 12px var(--accent-blue-glow); }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.825rem;
+      color: var(--text-muted);
+      background: var(--card-bg);
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      border: 1px solid var(--card-border);
+    }
     .indicator { width: 8px; height: 8px; border-radius: 50%; background-color: var(--danger); }
     .indicator.connected { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
 
-    button { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-weight: 500; }
-    button:hover { background: var(--border); }
-    button.btn-success { background: rgba(16, 185, 129, 0.1); color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
-    button.btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: rgba(239, 68, 68, 0.3); }
-    button.btn-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); border-color: rgba(245, 158, 11, 0.3); }
+    button {
+      background: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+      padding: 0.5rem 0.875rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.825rem;
+      transition: all 0.15s ease;
+    }
+    button:hover { background: rgba(255, 255, 255, 0.08); }
+    button.btn-success { background: rgba(16, 185, 129, 0.12); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.3); }
+    button.btn-danger { background: rgba(244, 63, 94, 0.12); color: #fca5a5; border-color: rgba(244, 63, 94, 0.3); }
+    button.btn-warning { background: rgba(245, 158, 11, 0.12); color: #fde68a; border-color: rgba(245, 158, 11, 0.3); }
 
-    .table-container { background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; overflow-x: auto; }
+    .table-container {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      overflow-x: auto;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    }
     table { width: 100%; border-collapse: collapse; text-align: left; }
-    th, td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
-    th { background-color: rgba(0, 0, 0, 0.2); color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; }
-    
-    .urgency-high { color: var(--danger); font-weight: 700; }
-    .urgency-medium { color: var(--warning); font-weight: 600; }
-    .urgency-low { color: var(--primary); }
+    th, td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--card-border); font-size: 0.875rem; }
+    th { background-color: rgba(0, 0, 0, 0.25); color: var(--text-muted); text-transform: uppercase; font-size: 0.725rem; font-weight: 700; letter-spacing: 0.05em; }
 
-    select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 0.375rem 0.5rem; border-radius: 0.25rem; }
+    /* Urgency Badges */
+    .badge { padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+    .badge-high { background: rgba(244, 63, 94, 0.15); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-medium { background: rgba(245, 158, 11, 0.15); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-low { background: rgba(16, 185, 129, 0.15); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+    select { background: rgba(15, 23, 42, 0.8); color: var(--text-main); border: 1px solid var(--card-border); padding: 0.375rem 0.5rem; border-radius: 0.375rem; outline: none; }
     .action-group { display: flex; gap: 0.375rem; }
-    .action-group button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    .action-group button { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
   </style>
@@ -57,18 +142,34 @@
 
   <div class="container">
     <header>
-      <h1>Incident Reports Dashboard</h1>
+      <h1>Counselor Management Console</h1>
       <div style="display: flex; gap: 0.75rem;">
         <div class="status-badge">
           <div id="connection-indicator" class="indicator"></div>
           <span id="connection-text">Connecting...</span>
         </div>
-        <button onclick="promptAdminPin()">Enter PIN</button>
+        <button onclick="promptAdminPin()">Authenticate PIN</button>
       </div>
     </header>
 
+    <!-- KPI Dashboard Overview -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Submissions</div>
+        <div class="stat-value" id="stat-total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" style="color: var(--warning);">Pending Review</div>
+        <div class="stat-value" id="stat-pending" style="color: var(--warning);">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" style="color: var(--danger);">Banned Accounts</div>
+        <div class="stat-value" id="stat-banned" style="color: var(--danger);">0</div>
+      </div>
+    </div>
+
     <div class="nav-tabs">
-      <button class="nav-tab active" onclick="switchTab('reports-tab', this)">Active Reports</button>
+      <button class="nav-tab active" onclick="switchTab('reports-tab', this)">Active Incident Reports</button>
       <button class="nav-tab" onclick="switchTab('appeals-tab', this)">Banned Accounts & Appeals</button>
     </div>
 
@@ -117,10 +218,7 @@
   </div>
 
   <script>
-    // Volatile memory PIN storage (erased on refresh)
     let adminPin = '';
-
-    // Web Audio API custom notification playback
     let audioCtx;
     let soundBuffer = null;
 
@@ -155,7 +253,6 @@
 
     initAudio();
 
-    // Navigation Tabs
     function switchTab(tabId, btn) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -166,7 +263,6 @@
       else fetchReports();
     }
 
-    // Live Stream SSE
     function startNotificationStream() {
       const indicator = document.getElementById('connection-indicator');
       const text = document.getElementById('connection-text');
@@ -203,7 +299,6 @@
       };
     }
 
-    // Authenticated Fetch Helper
     async function adminFetch(url, options = {}) {
       options.headers = {
         ...options.headers,
@@ -227,21 +322,26 @@
       }
     }
 
-    // Reports Table Render
     async function fetchReports() {
       if (!adminPin) return;
       try {
         const reports = await adminFetch('/api/reports');
         renderReportsTable(reports);
+        updateDashboardStats(reports);
       } catch (err) {
         console.error('Error fetching reports:', err);
       }
     }
 
+    function updateDashboardStats(reports) {
+      document.getElementById('stat-total').innerText = reports.length;
+      document.getElementById('stat-pending').innerText = reports.filter(r => r.status === 'Pending').length;
+    }
+
     function renderReportsTable(reports) {
       const tbody = document.getElementById('reports-table-body');
       if (!reports || reports.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No reports found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No active reports found.</td></tr>';
         return;
       }
 
@@ -249,6 +349,8 @@
         const formattedTime = r.timestamp 
           ? new Date(r.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
           : 'Unknown';
+
+        const urgencyClass = r.urgency === 'High' ? 'badge-high' : (r.urgency === 'Medium' ? 'badge-medium' : 'badge-low');
 
         return `
           <tr>
@@ -258,7 +360,7 @@
               <strong>${escapeHtml(r.category)}</strong><br>
               <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(r.description)}</span>
             </td>
-            <td><span class="urgency-${String(r.urgency).toLowerCase()}">${escapeHtml(r.urgency)}</span></td>
+            <td><span class="badge ${urgencyClass}">${escapeHtml(r.urgency)}</span></td>
             <td><span style="color: var(--text-muted); font-size: 0.8rem;">${formattedTime}</span></td>
             <td>
               <select onchange="updateStatus(${r.id}, this.value)">
@@ -279,12 +381,12 @@
       }).join('');
     }
 
-    // Bans & Appeals Table Render
     async function fetchBannedClients() {
       if (!adminPin) return;
       try {
         const data = await adminFetch('/api/banned-clients');
         renderAppealsTable(data.bans, data.reset_requests);
+        document.getElementById('stat-banned').innerText = data.bans ? data.bans.length : 0;
       } catch (err) {
         console.error('Error fetching bans:', err);
       }
@@ -313,7 +415,6 @@
       `).join('');
     }
 
-    // Counselor Actions
     async function resetStudentPin(admissionNumber) {
       if (confirm(`Reset PIN for ${admissionNumber}? They will create a new PIN on next login.`)) {
         await adminFetch('/api/admin/reset-pin', {

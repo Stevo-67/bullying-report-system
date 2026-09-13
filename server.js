@@ -4,17 +4,17 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ADMIN_PIN = process.env.ADMIN_PIN || '1234'; // Default admin PIN
+const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // In-Memory Database Storage
-let students = []; // Format: { admission_number, pin_hash, status: 'active'|'banned', warning: null }
-let reports = [];  // Format: { id, admission_number, student_name, category, urgency, description, status, timestamp }
-let appeals = [];  // Format: { admission_number, reason, timestamp }
+let students = []; // { admission_number, pin_hash, status: 'active'|'banned', warning: null }
+let reports = [];  // { id, admission_number, student_name, category, urgency, description, status, timestamp }
+let appeals = [];  // { admission_number, reason, timestamp }
 
-// SSE Clients List for Live Audio/Desktop Notifications
+// SSE Clients List for Live Feed
 let sseClients = [];
 
 // Middleware: Admin PIN Verification
@@ -115,7 +115,7 @@ app.post('/api/reports', (req, res) => {
     return res.status(403).json({ error: 'Submission denied. Account is restricted or unverified.' });
   }
 
-  // Backend Anti-Spam / Double-Submission Cooldown Check (10 seconds)
+  // Backend Anti-Spam Cooldown Check (10 seconds)
   const COOLDOWN_MS = 10000;
   const lastReport = reports
     .slice()
@@ -138,15 +138,13 @@ app.post('/api/reports', (req, res) => {
   };
 
   reports.push(newReport);
-
-  // Trigger real-time sound/desktop notification in admin panel
   broadcastNewReport(newReport);
 
   res.json({ success: true, message: 'Report submitted successfully.' });
 });
 
 app.post('/api/request-reset', (req, res) => {
-  const { clientId, reason } = req.body; // clientId maps to Admission Number
+  const { clientId, reason } = req.body;
   const cleanAdm = (clientId || '').trim().toUpperCase();
 
   if (!reason) {
