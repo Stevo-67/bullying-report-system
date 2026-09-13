@@ -115,7 +115,7 @@ app.post('/api/reports', (req, res) => {
     return res.status(403).json({ error: 'Submission denied. Account is restricted or unverified.' });
   }
 
-  // Backend Anti-Spam Cooldown Check (10 seconds)
+  // Backend Rate-Limitation Cooldown Check (10 seconds)
   const COOLDOWN_MS = 10000;
   const lastReport = reports
     .slice()
