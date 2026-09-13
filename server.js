@@ -9,9 +9,9 @@ const ADMIN_PIN = process.env.ADMIN_PIN || '1234'; // Default admin PIN
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-Memory Database Storage (Replace with Turso/SQLite queries if needed)
+// In-Memory Database Storage
 let students = []; // Format: { admission_number, pin_hash, status: 'active'|'banned', warning: null }
-let reports = [];  // Format: { id, admission_number, category, urgency, description, status, timestamp }
+let reports = [];  // Format: { id, admission_number, student_name, category, urgency, description, status, timestamp }
 let appeals = [];  // Format: { admission_number, reason, timestamp }
 
 // SSE Clients List for Live Audio/Desktop Notifications
@@ -113,6 +113,17 @@ app.post('/api/reports', (req, res) => {
 
   if (!student || student.status === 'banned') {
     return res.status(403).json({ error: 'Submission denied. Account is restricted or unverified.' });
+  }
+
+  // Backend Anti-Spam / Double-Submission Cooldown Check (10 seconds)
+  const COOLDOWN_MS = 10000;
+  const lastReport = reports
+    .slice()
+    .reverse()
+    .find(r => r.admission_number === cleanAdm);
+
+  if (lastReport && (Date.now() - new Date(lastReport.timestamp).getTime()) < COOLDOWN_MS) {
+    return res.status(429).json({ error: 'Please wait 10 seconds before submitting another report.' });
   }
 
   const newReport = {
