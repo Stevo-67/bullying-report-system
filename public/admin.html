@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Incident Management Console</title>
+  <title>Counselor Incident Console</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -67,11 +67,6 @@
       filter: brightness(1.15);
     }
 
-    button:active:not(:disabled) {
-      transform: translateY(-1px) scale(0.98);
-      box-shadow: 0 4px 10px -2px rgba(59, 130, 246, 0.3);
-    }
-
     button.btn-success { background: rgba(16, 185, 129, 0.12); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.3); }
     button.btn-danger { background: rgba(244, 63, 94, 0.12); color: #fca5a5; border-color: rgba(244, 63, 94, 0.3); }
     button.btn-warning { background: rgba(245, 158, 11, 0.12); color: #fde68a; border-color: rgba(245, 158, 11, 0.3); }
@@ -86,14 +81,12 @@
     .stat-card {
       background: var(--card-bg);
       backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--card-border);
       border-radius: 0.75rem;
       padding: 1.25rem;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
     }
 
-    .stat-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
     .stat-value { font-size: 2rem; font-weight: 700; margin-top: 0.35rem; }
 
     .nav-tabs { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; justify-content: space-between; align-items: center; }
@@ -108,60 +101,37 @@
       font-weight: 600;
       font-size: 0.85rem;
     }
-    .nav-tab.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); box-shadow: 0 4px 12px var(--accent-blue-glow); }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.825rem;
-      color: var(--text-muted);
-      background: var(--card-bg);
-      padding: 0.5rem 1rem;
-      border-radius: 9999px;
-      border: 1px solid var(--card-border);
-    }
-    .indicator { width: 8px; height: 8px; border-radius: 50%; background-color: var(--danger); }
-    .indicator.connected { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
+    .nav-tab.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
 
     .table-container {
       background: var(--card-bg);
       backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--card-border);
       border-radius: 0.75rem;
       overflow-x: auto;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
     }
     table { width: 100%; border-collapse: collapse; text-align: left; }
     th, td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--card-border); font-size: 0.875rem; }
-    th { background-color: rgba(0, 0, 0, 0.25); color: var(--text-muted); text-transform: uppercase; font-size: 0.725rem; font-weight: 700; letter-spacing: 0.05em; }
+    th { background-color: rgba(0, 0, 0, 0.25); color: var(--text-muted); text-transform: uppercase; font-size: 0.725rem; }
 
-    .badge { padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
-    .badge-high { background: rgba(244, 63, 94, 0.15); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
-    .badge-medium { background: rgba(245, 158, 11, 0.15); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .badge-low { background: rgba(16, 185, 129, 0.15); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge { padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-high { background: rgba(244, 63, 94, 0.15); color: #fda4af; }
+    .badge-medium { background: rgba(245, 158, 11, 0.15); color: #fde68a; }
+    .badge-low { background: rgba(16, 185, 129, 0.15); color: #a7f3d0; }
 
-    select { background: rgba(15, 23, 42, 0.8); color: var(--text-main); border: 1px solid var(--card-border); padding: 0.375rem 0.5rem; border-radius: 0.375rem; outline: none; }
+    select { background: rgba(15, 23, 42, 0.8); color: var(--text-main); border: 1px solid var(--card-border); padding: 0.375rem 0.5rem; border-radius: 0.375rem; }
     .action-group { display: flex; gap: 0.375rem; }
-    .action-group button { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
   </style>
 </head>
 <body>
 
-  <audio id="menu-music" loop src="/assets/cycle-to-the-stars.mp3"></audio>
-
   <div class="container">
     <header>
       <h1>Counselor Management Console</h1>
       <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <button id="music-btn" class="btn-warning" onclick="toggleMenuMusic()">🎵 Music: Paused</button>
-        <div class="status-badge">
-          <div id="connection-indicator" class="indicator"></div>
-          <span id="connection-text">Connecting...</span>
-        </div>
+        <button id="maint-btn" class="btn-warning" onclick="toggleMaintenance()">Toggle Site Shutdown</button>
         <button onclick="promptAdminPin()">Authenticate PIN</button>
       </div>
     </header>
@@ -176,15 +146,15 @@
         <div class="stat-value" id="stat-pending" style="color: var(--warning);">0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label" style="color: var(--danger);">Banned Accounts</div>
+        <div class="stat-label" style="color: var(--danger);">Banned Entries</div>
         <div class="stat-value" id="stat-banned" style="color: var(--danger);">0</div>
       </div>
     </div>
 
     <div class="nav-tabs">
       <div class="nav-tab-group">
-        <button class="nav-tab active" onclick="switchTab('reports-tab', this)">Active Incident Reports</button>
-        <button class="nav-tab" onclick="switchTab('appeals-tab', this)">Banned Accounts & Appeals</button>
+        <button class="nav-tab active" onclick="switchTab('reports-tab', this)">Incident Reports</button>
+        <button class="nav-tab" onclick="switchTab('appeals-tab', this)">Bans & Appeals</button>
       </div>
       <button class="btn-danger" onclick="clearAllReports()">🗑️ Clear All Reports</button>
     </div>
@@ -217,15 +187,14 @@
         <table>
           <thead>
             <tr>
-              <th>Student Admission No</th>
-              <th>Restriction</th>
+              <th>Identifier (ID / Device)</th>
+              <th>Ban Type</th>
               <th>Appeal Reason</th>
-              <th>Date</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="appeals-table-body">
-            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Awaiting PIN authentication...</td></tr>
+            <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Awaiting PIN authentication...</td></tr>
           </tbody>
         </table>
       </div>
@@ -235,130 +204,6 @@
 
   <script>
     let adminPin = '';
-    let notificationAudioCtx;
-    let soundBuffer = null;
-
-    let musicAudioCtx;
-    let musicSource;
-    let lowpassFilter;
-    let isMusicPlaying = false;
-
-    function toggleMenuMusic() {
-      const audio = document.getElementById('menu-music');
-      const btn = document.getElementById('music-btn');
-
-      if (!musicAudioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        musicAudioCtx = new AudioContextClass();
-        musicSource = musicAudioCtx.createMediaElementSource(audio);
-        
-        lowpassFilter = musicAudioCtx.createBiquadFilter();
-        lowpassFilter.type = 'lowpass';
-        lowpassFilter.frequency.value = 800;
-        lowpassFilter.Q.value = 1;
-
-        musicSource.connect(lowpassFilter);
-        lowpassFilter.connect(musicAudioCtx.destination);
-      }
-
-      if (musicAudioCtx.state === 'suspended') {
-        musicAudioCtx.resume();
-      }
-
-      if (isMusicPlaying) {
-        audio.pause();
-        btn.innerText = '🎵 Music: Paused';
-        btn.style.opacity = '0.8';
-      } else {
-        audio.volume = 0.5;
-        audio.play().then(() => {
-          btn.innerText = '🎶 Playing "Cycle to the Stars" (Muffled)';
-          btn.style.opacity = '1';
-        }).catch(err => {
-          console.error('Audio playback blocked:', err);
-          alert('Click anywhere on the dashboard first to enable audio playback.');
-        });
-      }
-
-      isMusicPlaying = !isMusicPlaying;
-    }
-
-    function initAudio() {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) return;
-      notificationAudioCtx = new AudioContextClass();
-
-      fetch('/notification.mp3')
-        .then(res => res.arrayBuffer())
-        .then(buf => notificationAudioCtx.decodeAudioData(buf))
-        .then(decoded => { soundBuffer = decoded; })
-        .catch(err => console.error('Sound buffer load error:', err));
-    }
-
-    function unlockAudioContext() {
-      if (notificationAudioCtx && notificationAudioCtx.state === 'suspended') {
-        notificationAudioCtx.resume();
-      }
-    }
-    document.addEventListener('click', unlockAudioContext, { once: true });
-    document.addEventListener('keydown', unlockAudioContext, { once: true });
-
-    function playCustomSound() {
-      if (!notificationAudioCtx || !soundBuffer) return;
-      if (notificationAudioCtx.state === 'suspended') notificationAudioCtx.resume();
-      const source = notificationAudioCtx.createBufferSource();
-      source.buffer = soundBuffer;
-      source.connect(notificationAudioCtx.destination);
-      source.start(0);
-    }
-
-    initAudio();
-
-    function switchTab(tabId, btn) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      btn.classList.add('active');
-
-      if (tabId === 'appeals-tab') fetchBannedClients();
-      else fetchReports();
-    }
-
-    function startNotificationStream() {
-      const indicator = document.getElementById('connection-indicator');
-      const text = document.getElementById('connection-text');
-      const eventSource = new EventSource('/api/events');
-
-      eventSource.onopen = () => {
-        indicator.classList.add('connected');
-        text.innerText = 'Live Feed Connected';
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          const report = JSON.parse(event.data);
-          playCustomSound();
-
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(`🚨 New Incident Report`, {
-              body: `Student: ${report.student_name}\nCategory: ${report.category}`,
-              icon: '/favicon.ico'
-            });
-          }
-
-          if (adminPin) fetchReports();
-        } catch (err) {
-          console.error('SSE parsing error:', err);
-        }
-      };
-
-      eventSource.onerror = () => {
-        indicator.classList.remove('connected');
-        text.innerText = 'Reconnecting...';
-        eventSource.close();
-        setTimeout(startNotificationStream, 3000);
-      };
-    }
 
     async function adminFetch(url, options = {}) {
       options.headers = {
@@ -383,6 +228,16 @@
       }
     }
 
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
+
+      if (tabId === 'appeals-tab') fetchBannedClients();
+      else fetchReports();
+    }
+
     async function fetchReports() {
       if (!adminPin) return;
       try {
@@ -390,7 +245,7 @@
         renderReportsTable(reports);
         updateDashboardStats(reports);
       } catch (err) {
-        console.error('Error fetching reports:', err);
+        console.error('Fetch reports error:', err);
       }
     }
 
@@ -407,22 +262,19 @@
       }
 
       tbody.innerHTML = reports.map(r => {
-        const formattedTime = r.timestamp 
-          ? new Date(r.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
-          : 'Unknown';
-
         const urgencyClass = r.urgency === 'High' ? 'badge-high' : (r.urgency === 'Medium' ? 'badge-medium' : 'badge-low');
+        const studentLabel = r.is_anonymous ? '<span style="color: var(--text-muted); font-style: italic;">ANONYMOUS</span>' : `<strong>${escapeHtml(r.admission_number)}</strong>`;
 
         return `
           <tr>
             <td>#${r.id}</td>
-            <td><strong>${escapeHtml(r.admission_number)}</strong></td>
+            <td>${studentLabel}</td>
             <td>
               <strong>${escapeHtml(r.category)}</strong><br>
               <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(r.description)}</span>
             </td>
             <td><span class="badge ${urgencyClass}">${escapeHtml(r.urgency)}</span></td>
-            <td><span style="color: var(--text-muted); font-size: 0.8rem;">${formattedTime}</span></td>
+            <td><span style="color: var(--text-muted); font-size: 0.8rem;">${new Date(r.timestamp).toLocaleString()}</span></td>
             <td>
               <select onchange="updateStatus(${r.id}, this.value)">
                 <option value="Pending" ${r.status === 'Pending' ? 'selected' : ''}>Pending</option>
@@ -432,9 +284,8 @@
             </td>
             <td>
               <div class="action-group">
-                <button class="btn-warning" onclick="resetStudentPin('${escapeHtml(r.admission_number)}')">Reset PIN</button>
-                <button class="btn-danger" onclick="applyBan(${r.id})">Ban Account</button>
-                <button onclick="clearSingleReport(${r.id})">Clear Report</button>
+                <button class="btn-danger" onclick="banAccountAndDevice(${r.id})">Ban Account & Device</button>
+                <button onclick="clearSingleReport(${r.id})">Clear</button>
               </div>
             </td>
           </tr>
@@ -449,14 +300,14 @@
         renderAppealsTable(data.bans, data.reset_requests);
         document.getElementById('stat-banned').innerText = data.bans ? data.bans.length : 0;
       } catch (err) {
-        console.error('Error fetching bans:', err);
+        console.error('Fetch bans error:', err);
       }
     }
 
     function renderAppealsTable(bans, resetRequests) {
       const tbody = document.getElementById('appeals-table-body');
       if (!bans || bans.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No banned student accounts.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No banned accounts or devices.</td></tr>';
         return;
       }
 
@@ -466,35 +317,29 @@
       tbody.innerHTML = bans.map(b => `
         <tr>
           <td><strong>${escapeHtml(b.client_id)}</strong></td>
-          <td><span style="color: var(--danger); font-weight:600;">Account Banned</span></td>
-          <td>${escapeHtml(requestMap[b.client_id] || 'No appeal submitted yet.')}</td>
-          <td>${new Date(b.timestamp).toLocaleString()}</td>
+          <td><span style="color: var(--danger); font-weight:600;">${escapeHtml(b.type)}</span></td>
+          <td>${escapeHtml(requestMap[b.client_id] || 'No appeal logged.')}</td>
           <td>
-            <button class="btn-success" onclick="unbanStudent('${escapeHtml(b.client_id)}')">Unban Account</button>
+            <button class="btn-success" onclick="unbanTarget('${escapeHtml(b.client_id)}')">Unban Target</button>
           </td>
         </tr>
       `).join('');
     }
 
-    async function resetStudentPin(admissionNumber) {
-      if (confirm(`Reset PIN for ${admissionNumber}? They will create a new PIN on next login.`)) {
-        await adminFetch('/api/admin/reset-pin', {
-          method: 'POST',
-          body: JSON.stringify({ admission_number: admissionNumber })
-        });
-        alert(`PIN for ${admissionNumber} has been reset.`);
-      }
+    async function toggleMaintenance() {
+      const data = await adminFetch('/api/admin/toggle-maintenance', { method: 'POST' });
+      alert(`Site maintenance mode is now: ${data.maintenance ? 'ON (Portal Offline)' : 'OFF (Portal Online)'}`);
     }
 
-    async function applyBan(id) {
-      if (confirm('Ban this student account across all devices?')) {
-        await adminFetch(`/api/reports/${id}/ban`, { method: 'POST' });
+    async function banAccountAndDevice(id) {
+      if (confirm('Permanently ban both the student account AND hardware device associated with this report?')) {
+        await adminFetch(`/api/reports/${id}/ban-all`, { method: 'POST' });
         fetchReports();
       }
     }
 
-    async function unbanStudent(clientId) {
-      if (confirm(`Unban student account ${clientId}?`)) {
+    async function unbanTarget(clientId) {
+      if (confirm(`Remove restrictions for target ${clientId}?`)) {
         await adminFetch('/api/unban', {
           method: 'POST',
           body: JSON.stringify({ clientId })
@@ -507,17 +352,15 @@
       await adminFetch(`/api/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
     }
 
-    // CLEAR SINGLE REPORT
     async function clearSingleReport(id) {
-      if (confirm(`Clear report #${id} from the database?`)) {
+      if (confirm(`Clear report #${id}?`)) {
         await adminFetch(`/api/reports/${id}`, { method: 'DELETE' });
         fetchReports();
       }
     }
 
-    // CLEAR ALL REPORTS
     async function clearAllReports() {
-      if (confirm('⚠️ WARNING: Delete ALL incident reports permanently from the database?')) {
+      if (confirm('⚠️ Permanently purge ALL reports from the database?')) {
         await adminFetch('/api/admin/clear-all-reports', { method: 'DELETE' });
         fetchReports();
       }
@@ -527,13 +370,7 @@
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-      startNotificationStream();
-      promptAdminPin();
-    });
+    document.addEventListener('DOMContentLoaded', promptAdminPin);
   </script>
 </body>
 </html>
