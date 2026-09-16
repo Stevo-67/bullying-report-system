@@ -96,14 +96,6 @@
       evtSource.onerror = () => { document.getElementById('conn-dot').className = 'dot reconnecting'; document.getElementById('conn-text').innerText = 'Reconnecting...'; evtSource.close(); setTimeout(initConnection, 5000); };
     }
 
-    async function checkSystemState() {
-      try {
-        const res = await fetch('/api/maintenance-status');
-        const data = await res.json();
-        if (data.maintenance) showOverlay('Maintenance Mode Active', 'The reporting portal is offline for maintenance.');
-      } catch (err) {}
-    }
-
     async function authenticateStudent() {
       const admNo = document.getElementById('adm-no').value.trim();
       const pin = document.getElementById('adm-pin').value.trim();
@@ -160,7 +152,6 @@
     function escapeHtml(str) { return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
     document.addEventListener('DOMContentLoaded', () => {
-      checkSystemState();
       fetchAnnouncements();
       initConnection();
     });

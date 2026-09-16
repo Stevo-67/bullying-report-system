@@ -55,7 +55,7 @@
 <body>
   <audio id="chime-sound" preload="auto"><source src="/notification.mp3" type="audio/mpeg"></audio>
   <audio id="bg-music" loop preload="none"><source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" type="audio/mpeg"></audio>
-  
+
   <div id="toast-container"></div>
 
   <div class="container">
@@ -73,7 +73,6 @@
         </div>
       </div>
       <div style="display: flex; gap: 0.75rem;">
-        <button id="maint-btn" class="btn-warning" onclick="toggleMaintenance()">Toggle Portal Offline</button>
         <button onclick="promptAdminPin()">Authenticate PIN</button>
       </div>
     </header>
@@ -244,7 +243,6 @@
 
     async function updateStatus(id, status) { await adminFetch(`/api/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }); }
     async function clearAllReports() { if (confirm('Purge ALL reports?')) { await adminFetch(`/api/admin/clear-all-reports`, { method: 'DELETE' }); fetchReports(); } }
-    async function toggleMaintenance() { const data = await adminFetch('/api/admin/toggle-maintenance', { method: 'POST' }); alert(`Portal Offline: ${data.maintenance}`); }
 
     async function postAnnouncement() {
       const title = document.getElementById('ann-title').value;

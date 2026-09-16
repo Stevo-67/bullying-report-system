@@ -71,14 +71,6 @@ async function initDB() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS system_state (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      maintenance BOOLEAN DEFAULT 0
-    )
-  `);
-  await db.execute(`INSERT OR IGNORE INTO system_state (id, maintenance) VALUES (1, 0)`);
 }
 initDB();
 
@@ -122,18 +114,6 @@ app.get('/api/events', (req, res) => {
   req.on('close', () => { clients = clients.filter(c => c.res !== res); });
   const ping = setInterval(() => res.write(':ping\n\n'), 15000);
   req.on('close', () => clearInterval(ping));
-});
-
-app.get('/api/maintenance-status', async (req, res) => {
-  const state = await db.execute("SELECT maintenance FROM system_state WHERE id = 1");
-  res.json({ maintenance: state.rows[0].maintenance === 1 });
-});
-
-app.post('/api/admin/toggle-maintenance', adminAuth, async (req, res) => {
-  const state = await db.execute("SELECT maintenance FROM system_state WHERE id = 1");
-  const newVal = state.rows[0].maintenance === 1 ? 0 : 1;
-  await db.execute("UPDATE system_state SET maintenance = ? WHERE id = 1", [newVal]);
-  res.json({ maintenance: newVal === 1 });
 });
 
 app.post('/api/student/auth', async (req, res) => {
