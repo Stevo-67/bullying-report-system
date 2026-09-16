@@ -3,152 +3,94 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Counselor Incident Console</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <title>Bullying Report System - Counselor Console</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg-dark: #090d16;
-      --card-bg: rgba(22, 30, 46, 0.75);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --accent-blue: #3b82f6;
-      --accent-blue-glow: rgba(59, 130, 246, 0.4);
-      --text-main: #f1f5f9;
-      --text-muted: #64748b;
-      --danger: #f43f5e;
-      --warning: #f59e0b;
-      --success: #10b981;
-    }
-
+    :root { --bg-dark: #090d16; --card-bg: rgba(22, 30, 46, 0.75); --card-border: rgba(255, 255, 255, 0.08); --accent-blue: #3b82f6; --accent-blue-glow: rgba(59, 130, 246, 0.4); --text-main: #f1f5f9; --text-muted: #64748b; --danger: #f43f5e; --warning: #f59e0b; --success: #10b981; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-    
-    body {
-      background-color: var(--bg-dark);
-      background-image: 
-        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
-      background-attachment: fixed;
-      color: var(--text-main);
-      padding: 2rem;
-      min-height: 100vh;
-    }
-
+    body { background-color: var(--bg-dark); background-image: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%); color: var(--text-main); padding: 2rem; min-height: 100vh; }
     .container { max-width: 1240px; margin: 0 auto; }
-    
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-      padding-bottom: 1.25rem;
-      border-bottom: 1px solid var(--card-border);
-    }
-
-    h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
-
-    button {
-      position: relative;
-      overflow: hidden;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      cursor: pointer;
-      background: var(--card-bg);
-      color: var(--text-main);
-      border: 1px solid var(--card-border);
-      padding: 0.55rem 1rem;
-      border-radius: 0.375rem;
-      font-weight: 600;
-      font-size: 0.825rem;
-    }
-
-    button:hover:not(:disabled) {
-      transform: translateY(-3px) scale(1.02);
-      box-shadow: 0 10px 20px -5px var(--accent-blue-glow);
-      filter: brightness(1.15);
-    }
-
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--card-border); flex-wrap: wrap; gap: 1rem; }
+    .header-left { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    h1 { font-size: 1.6rem; font-weight: 700; }
+    .connection-badge, .music-widget { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 600; background: var(--card-bg); border: 1px solid var(--card-border); padding: 0.35rem 0.75rem; border-radius: 9999px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-muted); }
+    .dot.online { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
+    .dot.reconnecting { background-color: var(--warning); box-shadow: 0 0 8px var(--warning); }
+    .music-btn { background: none; border: none; color: var(--accent-blue); cursor: pointer; font-size: 0.9rem; }
+    input[type="text"] { background: rgba(15, 23, 42, 0.8); color: var(--text-main); border: 1px solid var(--card-border); padding: 0.55rem 1rem; border-radius: 0.375rem; outline: none; }
+    button { transition: all 0.25s; cursor: pointer; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--card-border); padding: 0.55rem 1rem; border-radius: 0.375rem; font-weight: 600; font-size: 0.825rem; }
+    button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px -5px var(--accent-blue-glow); }
+    button.btn-primary { background: var(--accent-blue); border-color: var(--accent-blue); }
     button.btn-success { background: rgba(16, 185, 129, 0.12); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.3); }
     button.btn-danger { background: rgba(244, 63, 94, 0.12); color: #fca5a5; border-color: rgba(244, 63, 94, 0.3); }
     button.btn-warning { background: rgba(245, 158, 11, 0.12); color: #fde68a; border-color: rgba(245, 158, 11, 0.3); }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1.25rem;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card {
-      background: var(--card-bg);
-      backdrop-filter: blur(16px);
-      border: 1px solid var(--card-border);
-      border-radius: 0.75rem;
-      padding: 1.25rem;
-    }
-
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--card-bg); backdrop-filter: blur(16px); border: 1px solid var(--card-border); border-radius: 0.75rem; padding: 1.25rem; }
     .stat-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
     .stat-value { font-size: 2rem; font-weight: 700; margin-top: 0.35rem; }
-
     .nav-tabs { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; justify-content: space-between; align-items: center; }
     .nav-tab-group { display: flex; gap: 0.75rem; }
-    
-    .nav-tab {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      color: var(--text-muted);
-      padding: 0.6rem 1.2rem;
-      border-radius: 0.5rem;
-      font-weight: 600;
-      font-size: 0.85rem;
-    }
+    .nav-tab { background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text-muted); padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; }
     .nav-tab.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
-
-    .table-container {
-      background: var(--card-bg);
-      backdrop-filter: blur(16px);
-      border: 1px solid var(--card-border);
-      border-radius: 0.75rem;
-      overflow-x: auto;
-    }
+    .table-container { background: var(--card-bg); backdrop-filter: blur(16px); border: 1px solid var(--card-border); border-radius: 0.75rem; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
     th, td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--card-border); font-size: 0.875rem; }
     th { background-color: rgba(0, 0, 0, 0.25); color: var(--text-muted); text-transform: uppercase; font-size: 0.725rem; }
-
     .badge { padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
     .badge-high { background: rgba(244, 63, 94, 0.15); color: #fda4af; }
     .badge-medium { background: rgba(245, 158, 11, 0.15); color: #fde68a; }
     .badge-low { background: rgba(16, 185, 129, 0.15); color: #a7f3d0; }
-
     select { background: rgba(15, 23, 42, 0.8); color: var(--text-main); border: 1px solid var(--card-border); padding: 0.375rem 0.5rem; border-radius: 0.375rem; }
     .action-group { display: flex; gap: 0.375rem; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    #toast-container { position: fixed; bottom: 2rem; right: 2rem; display: flex; flex-direction: column; gap: 1rem; z-index: 9999; }
+    .toast { background: var(--card-bg); backdrop-filter: blur(16px); border: 1px solid var(--accent-blue); border-left: 4px solid var(--accent-blue); color: var(--text-main); padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); transform: translateX(120%); transition: transform 0.4s; display: flex; flex-direction: column; gap: 0.25rem; min-width: 250px; }
+    .toast.show { transform: translateX(0); }
+    .toast-title { font-weight: 700; font-size: 0.9rem; }
+    .toast-body { font-size: 0.8rem; color: var(--text-muted); }
   </style>
 </head>
 <body>
+  <audio id="chime-sound" preload="auto"><source src="/notification.mp3" type="audio/mpeg"></audio>
+  <audio id="bg-music" loop preload="none"><source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" type="audio/mpeg"></audio>
+  
+  <div id="toast-container"></div>
 
   <div class="container">
     <header>
-      <h1>Counselor Management Console</h1>
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <button id="maint-btn" class="btn-warning" onclick="toggleMaintenance()">Toggle Site Shutdown</button>
+      <div class="header-left">
+        <h1>Counselor Incident Console</h1>
+        <div class="connection-badge">
+          <div id="conn-dot" class="dot reconnecting"></div>
+          <span id="conn-text">Connecting...</span>
+        </div>
+        <div class="music-widget">
+          <span>🎵 Ambient Audio</span>
+          <button class="music-btn" onclick="toggleMusic()" id="music-toggle">▶️</button>
+          <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.3" style="width: 60px; cursor: pointer;" onchange="setVolume(this.value)">
+        </div>
+      </div>
+      <div style="display: flex; gap: 0.75rem;">
+        <button id="maint-btn" class="btn-warning" onclick="toggleMaintenance()">Toggle Portal Offline</button>
         <button onclick="promptAdminPin()">Authenticate PIN</button>
       </div>
     </header>
 
+    <div class="stat-card" style="margin-bottom: 2rem;">
+      <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">📢 Post Student Announcement</h3>
+      <div style="display: flex; gap: 1rem;">
+        <input type="text" id="ann-title" placeholder="Announcement Title" style="flex: 1;">
+        <input type="text" id="ann-message" placeholder="Message content..." style="flex: 2;">
+        <button class="btn-primary" onclick="postAnnouncement()">Post</button>
+      </div>
+    </div>
+
     <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Total Submissions</div>
-        <div class="stat-value" id="stat-total">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label" style="color: var(--warning);">Pending Review</div>
-        <div class="stat-value" id="stat-pending" style="color: var(--warning);">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label" style="color: var(--danger);">Banned Entries</div>
-        <div class="stat-value" id="stat-banned" style="color: var(--danger);">0</div>
-      </div>
+      <div class="stat-card"><div class="stat-label">Total Submissions</div><div class="stat-value" id="stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label" style="color: var(--warning);">Pending Review</div><div class="stat-value" id="stat-pending" style="color: var(--warning);">0</div></div>
+      <div class="stat-card"><div class="stat-label" style="color: var(--danger);">Banned Entries</div><div class="stat-value" id="stat-banned" style="color: var(--danger);">0</div></div>
     </div>
 
     <div class="nav-tabs">
@@ -159,133 +101,104 @@
       <button class="btn-danger" onclick="clearAllReports()">🗑️ Clear All Reports</button>
     </div>
 
-    <!-- TAB 1: REPORTS -->
     <div id="reports-tab" class="tab-content active">
       <div class="table-container">
         <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Student ID</th>
-              <th>Category / Details</th>
-              <th>Urgency</th>
-              <th>Submitted At</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="reports-table-body">
-            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Awaiting PIN authentication...</td></tr>
-          </tbody>
+          <thead><tr><th>ID</th><th>Student ID / Device</th><th>Category / Details</th><th>Urgency</th><th>Submitted At</th><th>Status</th><th>Targeted Ban Action</th></tr></thead>
+          <tbody id="reports-table-body"><tr><td colspan="7" style="text-align: center;">Awaiting PIN authentication...</td></tr></tbody>
         </table>
       </div>
     </div>
 
-    <!-- TAB 2: BANS & APPEALS -->
     <div id="appeals-tab" class="tab-content">
       <div class="table-container">
         <table>
-          <thead>
-            <tr>
-              <th>Identifier (ID / Device)</th>
-              <th>Ban Type</th>
-              <th>Appeal Reason</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="appeals-table-body">
-            <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Awaiting PIN authentication...</td></tr>
-          </tbody>
+          <thead><tr><th>Identifier</th><th>Ban Details</th><th>Appeal Reason</th><th>Actions</th></tr></thead>
+          <tbody id="appeals-table-body"><tr><td colspan="4" style="text-align: center;">Awaiting PIN authentication...</td></tr></tbody>
         </table>
       </div>
     </div>
-
   </div>
 
   <script>
     let adminPin = '';
+    const chimeSound = document.getElementById('chime-sound');
+    const bgMusic = document.getElementById('bg-music');
+    const musicToggle = document.getElementById('music-toggle');
+    bgMusic.volume = 0.3;
+
+    function toggleMusic() {
+      if (bgMusic.paused) { bgMusic.play(); musicToggle.innerText = '⏸️'; }
+      else { bgMusic.pause(); musicToggle.innerText = '▶️'; }
+    }
+    function setVolume(val) { bgMusic.volume = val; }
+
+    function showToast(title, message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<div class="toast-title">${escapeHtml(title)}</div><div class="toast-body">${escapeHtml(message)}</div>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 5000);
+    }
+
+    function initConnection() {
+      const evtSource = new EventSource('/api/events');
+      evtSource.onopen = () => { document.getElementById('conn-dot').className = 'dot online'; document.getElementById('conn-text').innerText = 'Connected'; };
+      evtSource.onmessage = (e) => {
+        try {
+          const newReport = JSON.parse(e.data);
+          chimeSound.play().catch(() => {});
+          showToast('New Incident Reported', `Category: ${newReport.category} (${newReport.urgency})`);
+          fetchReports();
+        } catch(err) {}
+      };
+      evtSource.onerror = () => { document.getElementById('conn-dot').className = 'dot reconnecting'; document.getElementById('conn-text').innerText = 'Reconnecting...'; evtSource.close(); setTimeout(initConnection, 5000); };
+    }
 
     async function adminFetch(url, options = {}) {
-      options.headers = {
-        ...options.headers,
-        'Content-Type': 'application/json',
-        'x-admin-pin': adminPin
-      };
-
+      options.headers = { ...options.headers, 'Content-Type': 'application/json', 'x-admin-pin': adminPin };
       const res = await fetch(url, options);
-      if (res.status === 401) {
-        promptAdminPin();
-        throw new Error('Unauthorized');
-      }
+      if (res.status === 401) { promptAdminPin(); throw new Error('Unauthorized'); }
       return res.json();
     }
 
     function promptAdminPin() {
-      const input = prompt('Enter Admin PIN:');
-      if (input) {
-        adminPin = input;
-        fetchReports();
-      }
+      const input = prompt('Enter Admin PIN (Default: 1234):');
+      if (input) { adminPin = input; fetchReports(); fetchBannedClients(); }
     }
 
     function switchTab(tabId, btn) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-content, .nav-tab').forEach(el => el.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       btn.classList.add('active');
-
-      if (tabId === 'appeals-tab') fetchBannedClients();
-      else fetchReports();
     }
 
     async function fetchReports() {
       if (!adminPin) return;
-      try {
-        const reports = await adminFetch('/api/reports');
-        renderReportsTable(reports);
-        updateDashboardStats(reports);
-      } catch (err) {
-        console.error('Fetch reports error:', err);
-      }
-    }
-
-    function updateDashboardStats(reports) {
+      const reports = await adminFetch('/api/reports');
       document.getElementById('stat-total').innerText = reports.length;
       document.getElementById('stat-pending').innerText = reports.filter(r => r.status === 'Pending').length;
-    }
 
-    function renderReportsTable(reports) {
       const tbody = document.getElementById('reports-table-body');
-      if (!reports || reports.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No active reports found.</td></tr>';
-        return;
-      }
+      if (!reports.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No reports.</td></tr>'; return; }
 
       tbody.innerHTML = reports.map(r => {
-        const urgencyClass = r.urgency === 'High' ? 'badge-high' : (r.urgency === 'Medium' ? 'badge-medium' : 'badge-low');
-        const studentLabel = r.is_anonymous ? '<span style="color: var(--text-muted); font-style: italic;">ANONYMOUS</span>' : `<strong>${escapeHtml(r.admission_number)}</strong>`;
-
+        const studentLabel = r.is_anonymous ? '<span style="color:var(--text-muted);font-style:italic;">ANONYMOUS</span>' : `<strong>${escapeHtml(r.admission_number)}</strong>`;
         return `
           <tr>
             <td>#${r.id}</td>
-            <td>${studentLabel}</td>
-            <td>
-              <strong>${escapeHtml(r.category)}</strong><br>
-              <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(r.description)}</span>
-            </td>
-            <td><span class="badge ${urgencyClass}">${escapeHtml(r.urgency)}</span></td>
-            <td><span style="color: var(--text-muted); font-size: 0.8rem;">${new Date(r.timestamp).toLocaleString()}</span></td>
-            <td>
-              <select onchange="updateStatus(${r.id}, this.value)">
-                <option value="Pending" ${r.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                <option value="In Progress" ${r.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                <option value="Resolved" ${r.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
-              </select>
-            </td>
+            <td>${studentLabel}<br><span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(r.device_id)}</span></td>
+            <td><strong>${escapeHtml(r.category)}</strong><br><span style="color:var(--text-muted);font-size:0.75rem;">${escapeHtml(r.description)}</span></td>
+            <td><span class="badge ${r.urgency === 'High'?'badge-high':'badge-low'}">${escapeHtml(r.urgency)}</span></td>
+            <td><span style="color:var(--text-muted);font-size:0.8rem;">${new Date(r.timestamp).toLocaleString()}</span></td>
+            <td><select onchange="updateStatus(${r.id}, this.value)"><option value="Pending" ${r.status==='Pending'?'selected':''}>Pending</option><option value="Resolved" ${r.status==='Resolved'?'selected':''}>Resolved</option></select></td>
             <td>
               <div class="action-group">
-                <button class="btn-danger" onclick="banAccountAndDevice(${r.id})">Ban Account & Device</button>
-                <button onclick="clearSingleReport(${r.id})">Clear</button>
+                <button class="btn-warning" onclick="issueTargetedBan(${r.id}, 'user')">Ban User</button>
+                <button class="btn-warning" onclick="issueTargetedBan(${r.id}, 'device')">Ban Device</button>
+                <button class="btn-danger" onclick="issueTargetedBan(${r.id}, 'both')">Ban Both</button>
               </div>
             </td>
           </tr>
@@ -293,84 +206,57 @@
       }).join('');
     }
 
-    async function fetchBannedClients() {
-      if (!adminPin) return;
-      try {
-        const data = await adminFetch('/api/banned-clients');
-        renderAppealsTable(data.bans, data.reset_requests);
-        document.getElementById('stat-banned').innerText = data.bans ? data.bans.length : 0;
-      } catch (err) {
-        console.error('Fetch bans error:', err);
-      }
-    }
-
-    function renderAppealsTable(bans, resetRequests) {
-      const tbody = document.getElementById('appeals-table-body');
-      if (!bans || bans.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No banned accounts or devices.</td></tr>';
-        return;
-      }
-
-      const requestMap = {};
-      (resetRequests || []).forEach(req => { requestMap[req.client_id] = req.reason; });
-
-      tbody.innerHTML = bans.map(b => `
-        <tr>
-          <td><strong>${escapeHtml(b.client_id)}</strong></td>
-          <td><span style="color: var(--danger); font-weight:600;">${escapeHtml(b.type)}</span></td>
-          <td>${escapeHtml(requestMap[b.client_id] || 'No appeal logged.')}</td>
-          <td>
-            <button class="btn-success" onclick="unbanTarget('${escapeHtml(b.client_id)}')">Unban Target</button>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    async function toggleMaintenance() {
-      const data = await adminFetch('/api/admin/toggle-maintenance', { method: 'POST' });
-      alert(`Site maintenance mode is now: ${data.maintenance ? 'ON (Portal Offline)' : 'OFF (Portal Online)'}`);
-    }
-
-    async function banAccountAndDevice(id) {
-      if (confirm('Permanently ban both the student account AND hardware device associated with this report?')) {
-        await adminFetch(`/api/reports/${id}/ban-all`, { method: 'POST' });
+    async function issueTargetedBan(id, target) {
+      if (confirm(`Apply strike to ${target.toUpperCase()} for report #${id}? 3 strikes results in a permanent ban.`)) {
+        const data = await adminFetch(`/api/reports/${id}/ban`, { method: 'POST', body: JSON.stringify({ target }) });
+        alert(data.message);
         fetchReports();
-      }
-    }
-
-    async function unbanTarget(clientId) {
-      if (confirm(`Remove restrictions for target ${clientId}?`)) {
-        await adminFetch('/api/unban', {
-          method: 'POST',
-          body: JSON.stringify({ clientId })
-        });
         fetchBannedClients();
       }
     }
 
-    async function updateStatus(id, status) {
-      await adminFetch(`/api/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+    async function fetchBannedClients() {
+      if (!adminPin) return;
+      const data = await adminFetch('/api/banned-clients');
+      document.getElementById('stat-banned').innerText = data.bans ? data.bans.length : 0;
+
+      const tbody = document.getElementById('appeals-table-body');
+      if (!data.bans.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No bans active.</td></tr>'; return; }
+
+      const requests = {}; (data.reset_requests||[]).forEach(r => requests[r.client_id] = r.reason);
+
+      tbody.innerHTML = data.bans.map(b => `
+        <tr>
+          <td><strong>${escapeHtml(b.client_id)}</strong></td>
+          <td><span style="color:var(--danger);font-weight:600;">${escapeHtml(b.type)}</span></td>
+          <td>${escapeHtml(requests[b.client_id] || 'No appeal logged.')}</td>
+          <td><button class="btn-success" onclick="unbanTarget('${escapeHtml(b.client_id)}')">Unban & Reset</button></td>
+        </tr>
+      `).join('');
     }
 
-    async function clearSingleReport(id) {
-      if (confirm(`Clear report #${id}?`)) {
-        await adminFetch(`/api/reports/${id}`, { method: 'DELETE' });
-        fetchReports();
+    async function unbanTarget(clientId) {
+      if (confirm(`Remove ban restrictions for ${clientId}?`)) {
+        await adminFetch('/api/unban', { method: 'POST', body: JSON.stringify({ clientId }) });
+        fetchBannedClients();
       }
     }
 
-    async function clearAllReports() {
-      if (confirm('⚠️ Permanently purge ALL reports from the database?')) {
-        await adminFetch('/api/admin/clear-all-reports', { method: 'DELETE' });
-        fetchReports();
-      }
+    async function updateStatus(id, status) { await adminFetch(`/api/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }); }
+    async function clearAllReports() { if (confirm('Purge ALL reports?')) { await adminFetch(`/api/admin/clear-all-reports`, { method: 'DELETE' }); fetchReports(); } }
+    async function toggleMaintenance() { const data = await adminFetch('/api/admin/toggle-maintenance', { method: 'POST' }); alert(`Portal Offline: ${data.maintenance}`); }
+
+    async function postAnnouncement() {
+      const title = document.getElementById('ann-title').value;
+      const message = document.getElementById('ann-message').value;
+      if (!title || !message) return alert("Fill out both fields.");
+      await adminFetch('/api/admin/announcements', { method: 'POST', body: JSON.stringify({ title, message }) });
+      alert('Announcement posted!');
+      document.getElementById('ann-title').value = ''; document.getElementById('ann-message').value = '';
     }
 
-    function escapeHtml(str) {
-      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    document.addEventListener('DOMContentLoaded', promptAdminPin);
+    function escapeHtml(str) { return String(str||'').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    document.addEventListener('DOMContentLoaded', () => { promptAdminPin(); initConnection(); });
   </script>
 </body>
 </html>
